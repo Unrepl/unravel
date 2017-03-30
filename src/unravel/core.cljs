@@ -62,7 +62,7 @@
   (cyan #(prn result)))
 
 (defmethod obey :exception [[_ e] rl]
-  (red #(pprint e)))
+  (red #(println (rstrip-one (with-out-str (pprint e))))))
 
 (defmethod obey :out [[_ s] rl]
   (.write js/process.stdout s))
