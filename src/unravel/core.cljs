@@ -35,7 +35,8 @@
     (.on rl "line" (fn [line]
                      (.write client
                              (str line "\n")
-                             "utf8")))))
+                             "utf8")))
+    (.on rl "close" (fn [] (.exit js/process)))))
 
 (defn -main [& [host port :as args]]
   (assert (= 2 (count args))

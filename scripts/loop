@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 while true; do
-    scripts/run
+    scripts/run localhost 50505
     if [[ $? != 143 ]]; then
         exit 0;
     fi
