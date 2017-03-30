@@ -32,6 +32,9 @@
 (defmethod obey :eval [[_ result] rl]
   (prn result))
 
+(defmethod obey :exception [[_ e] rl]
+  (prn e))
+
 (defmethod obey :out [[_ s] rl]
   (.write js/process.stdout s))
 
@@ -45,7 +48,8 @@
     (obey command rl)))
 
 (defn start [host port]
-  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn unrepl/param unrepl/... unrepl/object unrepl.java/class]]
+  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn unrepl/param unrepl/... unrepl/object unrepl.java/class
+              error]]
     (cljs.reader/register-tag-parser! t identity))
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
