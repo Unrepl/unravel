@@ -3,12 +3,13 @@
 (require '[clojure.core.server :as server]
          '[clojure.main :as main])
 
-(load-file "scripts/payload.clj")
+#_(load-file "scripts/payload.clj")
 
 (defn repl []
+  (main/repl)
   #_(main/repl
      :prompt (constantly nil))
-  (unrepl.repl/start))
+  #_(unrepl.repl/start))
 
 (server/start-server {:name "repl"
                       :port 50505

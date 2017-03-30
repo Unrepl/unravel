@@ -409,3 +409,5 @@
                      (::command (ex-data e))
                      (write [:command (::command (ex-data e)) @eval-id])
                      :else (write [:exception e @eval-id]))))))))
+
+(start)

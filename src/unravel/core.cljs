@@ -1,6 +1,7 @@
 (ns unravel.core
   (:require [clojure.string]
             [lumo.core]
+            [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]))
 
 (def readline (js/require "readline"))
@@ -16,7 +17,7 @@
                 host
                 (fn []
                   (.setNoDelay cx true)
-                  (on-connect)))
+                  (on-connect cx)))
       (.on "error" (fn [err] (println "Got error:" err)))
       (.on "data" (fn [data]
                     (on-data (.toString data "utf8")))))))
@@ -54,10 +55,21 @@
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
                                           :prompt ">> "})
+        ready? (atom false)
         client (connect host port
-                        #(.prompt rl)
+                        (fn [cx]
+                          (.write cx (lumo.io/slurp "scripts/payload.clj"))
+                          (.prompt rl))
                         (fn [data]
-                          (did-receive rl data)))]
+                          (cond
+
+                            (.startsWith data "[:unrepl/hello")
+                            (do
+                              (reset! ready? true)
+                              (did-receive rl data))
+
+                            @ready?
+                            (did-receive rl data))))]
     (.on rl "line" (fn [line]
                      (.write client
                              (str line "\n")
