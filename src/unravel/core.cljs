@@ -14,6 +14,25 @@
   (when @debug?
     (apply println args)))
 
+(defn tred []
+  (.write js/process.stdout "\33[31m"))
+
+(defn tcyan []
+  (.write js/process.stdout "\33[36m"))
+
+(defn treset []
+  (.write js/process.stdout "\33[0m"))
+
+(defn red [f]
+  (tred)
+  (f)
+  (treset))
+
+(defn cyan [f]
+  (tcyan)
+  (f)
+  (treset))
+
 (defn accept [v]
   (println "typed in:" (pr-str v)))
 
@@ -40,10 +59,10 @@
   (.prompt rl))
 
 (defmethod obey :eval [[_ result] rl]
-  (prn result))
+  (cyan #(prn result)))
 
 (defmethod obey :exception [[_ e] rl]
-  (pprint e))
+  (red #(pprint e)))
 
 (defmethod obey :out [[_ s] rl]
   (.write js/process.stdout s))
