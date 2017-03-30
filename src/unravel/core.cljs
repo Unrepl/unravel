@@ -23,8 +23,7 @@
                                           :prompt ">> "})
         client (connect #(.prompt rl)
                         (fn [data]
-                          (println "Got:" (pr-str data))
-                          (flush)))]
+                          (println data)))]
     (.on rl "line" (fn [line]
                      (.write client
                              (str line "\n")
