@@ -1,6 +1,7 @@
 (ns unravel.core
   (:require [clojure.string]
-            [lumo.core]))
+            [lumo.core]
+            [cljs.reader :refer [read-string]]))
 
 (def readline (js/require "readline"))
 (def net (js/require "net"))
@@ -23,15 +24,36 @@
 (defn rstrip-one [s]
   (clojure.string/replace s #"\n$" ""))
 
+(defmulti obey first)
+
+(defmethod obey :prompt [command rl]
+  (.prompt rl))
+
+(defmethod obey :eval [[_ result] rl]
+  (prn result))
+
+(defmethod obey :out [[_ s] rl]
+  (.write js/process.stdout s))
+
+(defmethod obey :unrepl/hello [command rl])
+
+(defmethod obey :default [command rl]
+  (println "WARNING: unknown command" (pr-str command)))
+
+(defn did-receive [rl data]
+  (let [command (cljs.reader/read-string data)]
+    (obey command rl)))
+
 (defn start [host port]
+  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn unrepl/param unrepl/... unrepl/object unrepl.java/class]]
+    (cljs.reader/register-tag-parser! t identity))
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
                                           :prompt ">> "})
         client (connect host port
                         #(.prompt rl)
                         (fn [data]
-                          (println (rstrip-one data))
-                          (.prompt rl)))]
+                          (did-receive rl data)))]
     (.on rl "line" (fn [line]
                      (.write client
                              (str line "\n")
