@@ -1,5 +1,6 @@
 (ns unravel.core
   (:require [clojure.string]
+            [clojure.pprint :refer [pprint]]
             [lumo.core]
             [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]))
@@ -24,7 +25,9 @@
                 (fn []
                   (.setNoDelay cx true)
                   (on-connect cx)))
-      (.on "error" (fn [err] (println "Got error:" err)))
+      (.on "error" (fn [err]
+                     (println "Socket error:" (pr-str err))
+                     (js/process.exit 1)))
       (.on "data" (fn [data]
                     (on-data (.toString data "utf8")))))))
 
@@ -40,7 +43,7 @@
   (prn result))
 
 (defmethod obey :exception [[_ e] rl]
-  (prn e))
+  (pprint e))
 
 (defmethod obey :out [[_ s] rl]
   (.write js/process.stdout s))
