@@ -7,6 +7,12 @@
 (def readline (js/require "readline"))
 (def net (js/require "net"))
 
+(def debug? (atom nil))
+
+(defn dbug [& args]
+  (when @debug?
+    (apply println args)))
+
 (defn accept [v]
   (println "typed in:" (pr-str v)))
 
@@ -46,6 +52,7 @@
 
 (defn did-receive [rl data]
   (let [command (cljs.reader/read-string data)]
+    (dbug "CMD:" (pr-str command))
     (obey command rl)))
 
 (defn start [host port]
@@ -58,8 +65,7 @@
         ready? (atom false)
         client (connect host port
                         (fn [cx]
-                          (.write cx (lumo.io/slurp "scripts/payload.clj"))
-                          (.prompt rl))
+                          (.write cx (lumo.io/slurp "scripts/payload.clj")))
                         (fn [data]
                           (cond
 
@@ -76,7 +82,12 @@
                              "utf8")))
     (.on rl "close" (fn [] (.exit js/process)))))
 
-(defn -main [& [host port :as args]]
-  (assert (= 2 (count args))
-          "Syntax: scripts/run <host> <port>")
-  (start host port))
+(defn -main [& args]
+  (let [[host port :as args] (if (= "--debug" (first args))
+                               (do
+                                 (reset! debug? true)
+                                 (rest args))
+                               args)]
+    (assert (= 2 (count args))
+            "Syntax: scripts/run [--debug] <host> <port>")
+    (start host port)))
