@@ -1,0 +1,3 @@
+#!/bin/bash
+
+exec rlwrap java -Dclojure.server.myrepl="{:port 50505 :accept clojure.main/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar "$@"

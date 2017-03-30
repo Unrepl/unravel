@@ -4,15 +4,32 @@
 (def net (js/require "net"))
 
 (defn accept [v]
-  (println "result:" (pr-str v)))
+  (println "typed in:" (pr-str v)))
+
+(defn connect [on-connect on-data]
+  (let [cx (.Socket. net)]
+    (doto cx
+      (.connect 50505 "localhost"
+                (fn []
+                  (.setNoDelay cx true)
+                  (on-connect)))
+      (.on "error" (fn [err] (println "Got error:" err)))
+      (.on "data" (fn [data]
+                    (on-data (.toString data "utf8")))))))
 
 (defn start []
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
-                                          :prompt ">> "})]
-    (.prompt rl)
+                                          :prompt ">> "})
+        client (connect #(.prompt rl)
+                        (fn [data]
+                          (println "Got:" (pr-str data))
+                          (flush)))]
     (.on rl "line" (fn [line]
-                     (accept line)
-                     (.prompt rl)))))
+                     (.write client
+                             (str line "\n")
+                             "utf8")
+                     #_(.prompt rl)))))
+
 (defn -main []
   (start))
