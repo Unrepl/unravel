@@ -10,7 +10,7 @@ Work in progress
 
 ## Usage
 
-Open a Clojure socket server. (For testing you can use `scripts/server`, which starts a socket server on port 50505.)
+Open a Clojure socket server configured without a prompt. For testing you can use `scripts/server`, which starts a no-prompt socket server listening on port 50505.
 
 In another terminal, run
 
