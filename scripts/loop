@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+while true; do
+    scripts/run
+    if [[ $? != 143 ]]; then
+        exit 0;
+    fi
+    echo "Rerunning..."
+done

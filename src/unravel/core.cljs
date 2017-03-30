@@ -1,17 +1,18 @@
 (ns unravel.core)
 
 (def readline (js/require "readline"))
-(def rl (.createInterface readline #js{:input js/process.stdin
-                                       :output js/process.stdout
-                                       :prompt "> "}))
+(def net (js/require "net"))
 
 (defn accept [v]
-  (println "got" (pr-str v)))
+  (println "result:" (pr-str v)))
 
 (defn start []
-  (.prompt rl)
-  (.on rl "line" (fn [line]
-                   (accept line)
-                   (.prompt rl))))
+  (let [rl (.createInterface readline #js{:input js/process.stdin
+                                          :output js/process.stdout
+                                          :prompt ">> "})]
+    (.prompt rl)
+    (.on rl "line" (fn [line]
+                     (accept line)
+                     (.prompt rl)))))
 (defn -main []
   (start))
