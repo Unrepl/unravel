@@ -1,4 +1,5 @@
-(ns unravel.core)
+(ns unravel.core
+  (:require [clojure.string]))
 
 (def readline (js/require "readline"))
 (def net (js/require "net"))
@@ -17,18 +18,21 @@
       (.on "data" (fn [data]
                     (on-data (.toString data "utf8")))))))
 
+(defn rstrip-one [s]
+  (clojure.string/replace s #"\n$" ""))
+
 (defn start []
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
                                           :prompt ">> "})
         client (connect #(.prompt rl)
                         (fn [data]
-                          (println data)))]
+                          (println (rstrip-one data))
+                          (.prompt rl)))]
     (.on rl "line" (fn [line]
                      (.write client
                              (str line "\n")
-                             "utf8")
-                     #_(.prompt rl)))))
+                             "utf8")))))
 
 (defn -main []
   (start))
