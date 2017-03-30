@@ -6,16 +6,22 @@ Unravel is a simple command-line client for Clojure REPLs. It is based on the [u
 
 ## Status
 
-Work in progress
+Initial WIP version
 
 ## Usage
 
-Open a Clojure socket server configured without a prompt. For testing you can use `scripts/server`, which starts a no-prompt socket server listening on port 50505.
+Open a Clojure [socket server](https://clojure.org/reference/repl_and_main#_launching_a_socket_server):
+
+```
+java -Dclojure.server.myrepl="{:port 50505 :accept clojure.main/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar
+```
 
 In another terminal, run
 
 ```
-scripts/run localhost <socket-server-port>
+git clone https://github.com/pesterhazy/unravel.git
+cd unravel
+scripts/run localhost 50505
 ```
 
 ## License
