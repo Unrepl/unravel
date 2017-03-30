@@ -1,5 +1,6 @@
 (ns unravel.core
-  (:require [clojure.string]))
+  (:require [clojure.string]
+            [lumo.core]))
 
 (def readline (js/require "readline"))
 (def net (js/require "net"))
@@ -7,10 +8,11 @@
 (defn accept [v]
   (println "typed in:" (pr-str v)))
 
-(defn connect [on-connect on-data]
+(defn connect [host port on-connect on-data]
   (let [cx (.Socket. net)]
     (doto cx
-      (.connect 50505 "localhost"
+      (.connect port
+                host
                 (fn []
                   (.setNoDelay cx true)
                   (on-connect)))
@@ -21,11 +23,12 @@
 (defn rstrip-one [s]
   (clojure.string/replace s #"\n$" ""))
 
-(defn start []
+(defn start [host port]
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
                                           :prompt ">> "})
-        client (connect #(.prompt rl)
+        client (connect host port
+                        #(.prompt rl)
                         (fn [data]
                           (println (rstrip-one data))
                           (.prompt rl)))]
@@ -34,5 +37,7 @@
                              (str line "\n")
                              "utf8")))))
 
-(defn -main []
-  (start))
+(defn -main [& [host port :as args]]
+  (assert (= 2 (count args))
+          "Syntax: scripts/run <host> <port>")
+  (start host port))
