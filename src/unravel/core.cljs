@@ -48,7 +48,7 @@
       [r (unblank (clojure.string/trim (read-chars reader)))])))
 
 (def whitespace-regex #"([\s,])(.*)")
-(def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9-]*)(.*)")
+(def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9/.-]*)(.*)")
 
 (defn tokenize [s]
   (loop [pos 0
@@ -86,7 +86,7 @@
 
 (defn dbug [& args]
   (when @debug?
-    (apply println args)))
+    (prn (vec args))))
 
 (defn tred []
   (.write js/process.stdout "\33[31m"))
@@ -116,7 +116,7 @@
 (defmulti obey first)
 
 (defmethod obey :prompt [command rl]
-  (.prompt rl))
+  (._refreshLine rl))
 
 (defmethod obey :eval [[_ result] rl]
   (cyan #(prn result)))
@@ -133,7 +133,7 @@
   (println "WARNING: unknown command" (pr-str command)))
 
 (defn did-receive [rl command]
-  (dbug "CMD:" (pr-str command))
+  (dbug :receive command)
   (obey command rl))
 
 (defn edn-stream [stream on-read]
@@ -163,11 +163,13 @@
     (reset! !on-readable on-readable)
     (.on stream "readable" on-readable)))
 
+(defn send! [cx s]
+  (dbug :send s)
+  (.write cx s "utf8"))
+
 (defn action [cx line cursor]
   (let [word (find-word-at line (max 0 (dec cursor)))]
-    (.write cx
-            (str "(clojure.repl/doc " word ")" "\n")
-            "utf8")))
+    (send! cx (str "(clojure.repl/doc " word ")" "\n"))))
 
 (defn start [host port]
   (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
