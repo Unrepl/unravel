@@ -152,7 +152,9 @@
                      (.write cx
                              (str line "\n")
                              "utf8")))
-    (.on rl "close" (fn [] (.exit js/process)))))
+    (.on rl "close" (fn []
+                      (println)
+                      (.exit js/process)))))
 
 (defn -main [& args]
   (let [[host port :as args] (if (= "--debug" (first args))
