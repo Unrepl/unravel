@@ -47,6 +47,41 @@
     (when (not= ::eof r)
       [r (unblank (clojure.string/trim (read-chars reader)))])))
 
+(def whitespace-regex #"([\s,])(.*)")
+(def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9-]*)(.*)")
+
+(defn tokenize [s]
+  (loop [pos 0
+         s s
+         tokens []]
+    (if (clojure.string/blank? s)
+      tokens
+      (if-let [[_ match rst] (re-matches whitespace-regex s)]
+        (recur (+ pos (count match)) rst tokens)
+        (if-let [[_ word rst] (re-matches word-regex s)]
+          (recur (+ pos (count word))
+                 rst
+                 (conj tokens {:start pos
+                               :end (+ pos (count word))
+                               :type :word
+                               :value word}))
+          (recur (inc pos)
+                 (subs s 1) (conj tokens {:start pos
+                                          :end (inc pos)
+                                          :type :syntax
+                                          :value (first s)})))))))
+
+(defn find-word-at [s pos]
+  (let [tokens (->> s
+                    tokenize
+                    (filter (comp #{:word} :type)))]
+    (:value (or (some (fn [{:keys [type end] :as token}]
+                        (when (< pos end)
+                          token))
+                      tokens)
+                (last tokens)))))
+
+
 ;; ------
 
 (defn dbug [& args]
@@ -128,13 +163,21 @@
     (reset! !on-readable on-readable)
     (.on stream "readable" on-readable)))
 
+(defn action [cx line cursor]
+  (let [word (find-word-at line (max 0 (dec cursor)))]
+    (.write cx
+            (str "(clojure.repl/doc " word ")" "\n")
+            "utf8")))
+
 (defn start [host port]
   (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
               unrepl/param unrepl/... unrepl/object
               unrepl.java/class unrepl/ratio error]]
     (cljs.reader/register-tag-parser! t identity))
-  (let [rl (.createInterface readline #js{:input js/process.stdin
-                                          :output js/process.stdout
+  (let [istream js/process.stdin
+        ostream js/process.stdout
+        rl (.createInterface readline #js{:input istream
+                                          :output ostream
                                           :prompt ">> "})
         cx (.Socket. net)]
     (doto cx
@@ -155,7 +198,12 @@
                              "utf8")))
     (.on rl "close" (fn []
                       (println)
-                      (.exit js/process)))))
+                      (.exit js/process)))
+    (.on istream "keypress"
+         (fn [chunk key]
+           (when (and (.-ctrl key) (= "o" (.-name key)))
+             (println)
+             (action cx (.-line rl) (.-cursor rl)))))))
 
 (defn -main [& args]
   (let [[host port :as args] (if (= "--debug" (first args))

@@ -5,3 +5,4 @@
 - [ ] lazy seq elisions
 - [ ] pretty-printing exceptions
 - [ ] interrupt eval on Control-C
+- [ ] Tab completion

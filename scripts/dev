@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+lumo -c src -e "(require 'unravel.core)" -r "$@"
