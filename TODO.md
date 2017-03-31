@@ -1,0 +1,7 @@
+- [ ] show clojure.repl/doc on current form on shortcut
+- [ ] welcome message (connected to ...)
+- [ ] use defrecord for tagged values, i.e. ratios, classes etc
+- [ ] persistent history
+- [ ] lazy seq elisions
+- [ ] pretty-printing exceptions
+- [ ] interrupt eval on Control-C

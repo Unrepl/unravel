@@ -129,8 +129,9 @@
     (.on stream "readable" on-readable)))
 
 (defn start [host port]
-  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn unrepl/param unrepl/... unrepl/object unrepl.java/class
-              error]]
+  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
+              unrepl/param unrepl/... unrepl/object
+              unrepl.java/class unrepl/ratio error]]
     (cljs.reader/register-tag-parser! t identity))
   (let [rl (.createInterface readline #js{:input js/process.stdin
                                           :output js/process.stdout
