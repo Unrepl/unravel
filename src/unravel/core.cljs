@@ -168,8 +168,13 @@
   (.write cx s "utf8"))
 
 (defn action [cx line cursor]
-  (let [word (find-word-at line (max 0 (dec cursor)))]
+  (when-let [word (find-word-at line (max 0 (dec cursor)))]
+    (println)
     (send! cx (str "(clojure.repl/doc " word ")" "\n"))))
+
+(defn banner [host port]
+  (println (str "Unravel 0.1 connected to " host ":" port "\n"))
+  (println "Type ^O for docs of symbol under cursor, ^D to quit"))
 
 (defn start [host port]
   (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
@@ -192,8 +197,10 @@
                      (println "Socket error:" (pr-str err))
                      (js/process.exit 1)))
       (consume-until "[:unrepl/hello"
-                     (fn [] (edn-stream cx (fn [v]
-                                             (did-receive rl v))))))
+                     (fn []
+                       (banner host port)
+                       (edn-stream cx (fn [v]
+                                        (did-receive rl v))))))
     (.on rl "line" (fn [line]
                      (.write cx
                              (str line "\n")
@@ -204,7 +211,6 @@
     (.on istream "keypress"
          (fn [chunk key]
            (when (and (.-ctrl key) (= "o" (.-name key)))
-             (println)
              (action cx (.-line rl) (.-cursor rl)))))))
 
 (defn -main [& args]

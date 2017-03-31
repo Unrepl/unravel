@@ -1,5 +1,7 @@
-- [ ] show clojure.repl/doc on current form on shortcut
-- [ ] welcome message (connected to ...)
+- [x] show clojure.repl/doc on current form on shortcut
+- [x] welcome message (connected to ...)
+- [ ] release bundle
+- [ ] show current namespace
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
 - [ ] persistent history
 - [ ] lazy seq elisions
