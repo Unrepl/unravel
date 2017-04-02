@@ -16,7 +16,7 @@ Unravel is functional but should be considered a preview release
 
 To use unravel you need Clojure 1.8.0 or above.
 
-On Linux or macOS, can install unravel via npm:
+On Linux or macOS you can install unravel via npm:
 
 ```
 sudo npm install -g lumo-cljs unravel-repl
@@ -32,7 +32,7 @@ scripts/run [--debug] <host> <port>
 
 ## Usage
 
-Connect to a Clojure [Socket REPL] (https://clojure.org/reference/repl_and_main#_launching_a_socket_server):
+Connect to a Clojure [Socket REPL](https://clojure.org/reference/repl_and_main#_launching_a_socket_server):
 
 ```
 unravel [--debug] <host> <port>
