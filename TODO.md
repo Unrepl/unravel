@@ -13,3 +13,4 @@
 - [ ] pretty-printing exceptions
 - [ ] interrupt eval on Control-C
 - [ ] Tab completion
+- [ ] highlighting parens (a la lumo)
