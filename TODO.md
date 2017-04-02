@@ -3,8 +3,10 @@
 - [x] release bundle
 - [x] improve docs
 - [x] add npm version badge
-- [ ] add `--version` cli switch
+- [x] add `--version` cli switch
 - [x] show current namespace
+- [ ] handle empty lines
+- [ ] multi-line input
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
 - [x] persistent history
 - [ ] lazy seq elisions

@@ -86,6 +86,10 @@ Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unre
 
 ## Changes
 
+### 0.1.3
+
+Persistent history
+
 ### 0.1.2
 
 Distribute via npm
