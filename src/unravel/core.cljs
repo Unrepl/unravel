@@ -3,7 +3,8 @@
             [clojure.pprint :refer [pprint]]
             [lumo.core]
             [lumo.io :refer [slurp]]
-            [cljs.reader :refer [read-string]])
+            [cljs.reader :refer [read-string]]
+            [unravel.version :as uv])
   (:import [goog.string StringBuffer]))
 
 (def path (js/require "path"))
@@ -178,7 +179,7 @@
     (send! cx (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))" "\n"))))
 
 (defn banner [host port]
-  (println (str "Unravel 0.1 connected to " host ":" port "\n"))
+  (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
   (println "Type ^O for docs of symbol under cursor, ^D to quit"))
 
 (defn resource [path]

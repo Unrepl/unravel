@@ -1,0 +1,4 @@
+#!/usr/bin/env lumo
+
+(defn update-file [fname f & args]
+  (lumo.io/spit fname (apply f (lumo.io/slurp fname))))
