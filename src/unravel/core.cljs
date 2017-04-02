@@ -6,8 +6,10 @@
             [cljs.reader :refer [read-string]])
   (:import [goog.string StringBuffer]))
 
-(def readline (js/require "readline"))
+(def path (js/require "path"))
+(def readline (js/require "historic-readline"))
 (def net (js/require "net"))
+(def os-homedir (js/require "os-homedir"))
 
 (def debug? (atom nil))
 
@@ -184,17 +186,8 @@
        "/"
        path))
 
-(defn start [host port]
-  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
-              unrepl/param unrepl/... unrepl/object
-              unrepl.java/class unrepl/ratio error]]
-    (cljs.reader/register-tag-parser! t identity))
-  (let [istream js/process.stdin
-        ostream js/process.stdout
-        rl (.createInterface readline #js{:input istream
-                                          :output ostream
-                                          :prompt ">> "})
-        cx (.Socket. net)]
+(defn start* [istream ostream rl host port]
+  (let [cx (.Socket. net)]
     (doto cx
       (.connect port
                 host
@@ -220,6 +213,20 @@
          (fn [chunk key]
            (when (and (.-ctrl key) (= "o" (.-name key)))
              (action cx (.-line rl) (.-cursor rl)))))))
+
+(defn start [host port]
+  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
+              unrepl/param unrepl/... unrepl/object
+              unrepl.java/class unrepl/ratio error]]
+    (cljs.reader/register-tag-parser! t identity))
+  (let [istream js/process.stdin
+        ostream js/process.stdout
+        opts #js{:input istream
+                 :output ostream
+                 :path (.join path (os-homedir) ".unravel" "history")
+                 :maxLength 1000
+                 :next #(start* istream ostream % host port)}]
+    (.createInterface readline opts)))
 
 (defn fail [message]
   (println message)

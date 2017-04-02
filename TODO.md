@@ -6,7 +6,7 @@
 - [ ] add `--version` cli switch
 - [x] show current namespace
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
-- [ ] persistent history
+- [x] persistent history
 - [ ] lazy seq elisions
 - [ ] pretty-printing exceptions
 - [ ] interrupt eval on Control-C

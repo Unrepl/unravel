@@ -16,6 +16,8 @@ Unravel is functional but should be considered a preview release
 
 To use unravel you need Clojure 1.8.0 or above.
 
+### Simple installation using npm
+
 On Linux or macOS you can install unravel via npm:
 
 ```
@@ -24,9 +26,14 @@ sudo npm install -g lumo-cljs unravel-repl
 
 This installs the `unravel` binary and adds it to your PATH.
 
-Alternatively, clone the git project and type:
+### Installation from git
+
+For a more up-to-date version, you can check out master:
 
 ```
+git clone https://github.com/pesterhazy/unravel.git
+cd unravel
+npm install
 scripts/run [--debug] <host> <port>
 ```
 

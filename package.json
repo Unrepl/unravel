@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/pesterhazy/unravel",
   "dependencies": {
-    "lumo-cljs": "1.2.0"
+    "historic-readline": "^1.0.8",
+    "lumo-cljs": "1.2.0",
+    "os-homedir": "^1.0.2"
   }
 }
