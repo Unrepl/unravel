@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+export UNRAVEL_HOME=${UNRAVEL_HOME:-$(npm -g root)/\@pesterhazy/unravel}
+
+lumo -c ${UNRAVEL_HOME}/src -m unravel.core "$@"

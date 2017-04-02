@@ -1,0 +1,28 @@
+{
+  "name": "@pesterhazy/unravel",
+  "version": "0.1.0",
+  "description": "CLI REPL client for Clojure based on unrepl protocol",
+  "bin": {
+    "unravel": "bin/unravel"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:pesterhazy/unravel.git"
+  },
+  "keywords": [
+    "clojure",
+    "clojurescript",
+    "repl",
+    "cli",
+    "client"
+  ],
+  "author": "Paulus Esterhazy",
+  "license": "EPL",
+  "bugs": {
+    "url": "https://github.com/pesterhazy/unravel/issues"
+  },
+  "homepage": "https://github.com/pesterhazy/unravel",
+  "dependencies": {
+    "lumo-cljs": "1.0.0"
+  }
+}

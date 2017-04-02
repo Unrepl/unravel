@@ -1,6 +1,7 @@
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [ ] release bundle
+- [ ] improve docs
 - [ ] show current namespace
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
 - [ ] persistent history
