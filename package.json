@@ -1,6 +1,6 @@
 {
   "name": "unravel-repl",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CLI REPL client for Clojure based on unrepl protocol",
   "bin": {
     "unravel": "bin/unravel"
@@ -23,6 +23,6 @@
   },
   "homepage": "https://github.com/pesterhazy/unravel",
   "dependencies": {
-    "lumo-cljs": "1.0.0"
+    "lumo-cljs": "1.2.0"
   }
 }

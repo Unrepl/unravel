@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-export UNRAVEL_HOME=${UNRAVEL_HOME:-$(npm -g root)/unravel-repl}
+export UNRAVEL_HOME="${UNRAVEL_HOME:-$(npm -g root)/unravel-repl}"
 
-exec lumo -c "${UNRAVEL_HOME}/src" -m unravel.core "$@"
+exec "${UNRAVEL_HOME}/node_modules/lumo-cljs/bin/lumo" -c "${UNRAVEL_HOME}/src" -m unravel.core "$@"
