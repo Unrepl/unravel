@@ -233,12 +233,26 @@
   (println message)
   (js/process.exit 1))
 
-(defn -main [& args]
-  (let [[host port :as args] (if (= "--debug" (first args))
-                               (do
-                                 (reset! debug? true)
-                                 (rest args))
-                               args)]
+(defn print-version! []
+  (println "Unravel" uv/version)
+  (js/process.exit 0))
+
+(defn parse [args]
+  (reduce (fn [acc arg]
+            (cond
+              (= "--debug" arg)
+              (do
+                (reset! debug? true)
+                acc)
+              (= "--version" arg)
+              (print-version!)
+              :else
+              (conj acc arg)))
+          []
+          args))
+
+(defn -main [& more]
+  (let [[host port :as args] (parse more)]
     (when-not (= 2 (count args))
-      (fail "Syntax: unravel [--debug] <host> <port>"))
+      (fail "Syntax: unravel [--debug] <host> <port>\n        unravel --version"))
     (start host port)))
