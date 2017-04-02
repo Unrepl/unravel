@@ -1,6 +1,6 @@
 {
-  "name": "@pesterhazy/unravel",
-  "version": "0.1.0",
+  "name": "unravel-repl",
+  "version": "0.1.1",
   "description": "CLI REPL client for Clojure based on unrepl protocol",
   "bin": {
     "unravel": "bin/unravel"

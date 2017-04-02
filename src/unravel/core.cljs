@@ -213,12 +213,16 @@
            (when (and (.-ctrl key) (= "o" (.-name key)))
              (action cx (.-line rl) (.-cursor rl)))))))
 
+(defn fail [message]
+  (println message)
+  (js/process.exit 1))
+
 (defn -main [& args]
   (let [[host port :as args] (if (= "--debug" (first args))
                                (do
                                  (reset! debug? true)
                                  (rest args))
                                args)]
-    (assert (= 2 (count args))
-            "Syntax: scripts/run [--debug] <host> <port>")
+    (when-not (= 2 (count args))
+      (fail "Syntax: unravel [--debug] <host> <port>"))
     (start host port)))
