@@ -1,6 +1,6 @@
 {
   "name": "unravel-repl",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI REPL client for Clojure based on unrepl protocol",
   "bin": {
     "unravel": "bin/unravel"
@@ -17,7 +17,7 @@
     "client"
   ],
   "author": "Paulus Esterhazy",
-  "license": "EPL",
+  "license": "EPL-1.0",
   "bugs": {
     "url": "https://github.com/pesterhazy/unravel/issues"
   },

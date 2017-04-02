@@ -2,6 +2,8 @@
 - [x] welcome message (connected to ...)
 - [x] release bundle
 - [x] improve docs
+- [x] add npm version badge
+- [ ] add `--version` cli switch
 - [ ] show current namespace
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
 - [ ] persistent history

@@ -176,6 +176,11 @@
   (println (str "Unravel 0.1 connected to " host ":" port "\n"))
   (println "Type ^O for docs of symbol under cursor, ^D to quit"))
 
+(defn resource [path]
+  (str (or js/process.env.UNRAVEL_HOME ".")
+       "/"
+       path))
+
 (defn start [host port]
   (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
               unrepl/param unrepl/... unrepl/object
@@ -192,7 +197,7 @@
                 host
                 (fn []
                   (.setNoDelay cx true)
-                  (.write cx (lumo.io/slurp "scripts/payload.clj"))))
+                  (.write cx (-> "scripts/payload.clj" resource lumo.io/slurp))))
       (.on "error" (fn [err]
                      (println "Socket error:" (pr-str err))
                      (js/process.exit 1)))

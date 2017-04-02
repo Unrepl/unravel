@@ -2,4 +2,4 @@
 
 export UNRAVEL_HOME=${UNRAVEL_HOME:-$(npm -g root)/unravel-repl}
 
-lumo -c ${UNRAVEL_HOME}/src -m unravel.core "$@"
+exec lumo -c "${UNRAVEL_HOME}/src" -m unravel.core "$@"

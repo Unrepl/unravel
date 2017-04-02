@@ -2,6 +2,8 @@
 
 Unravel your REPL
 
+[![npm version](https://badge.fury.io/js/unravel-repl.svg)](https://badge.fury.io/js/unravel-repl)
+
 Unravel is a simple command-line client for Clojure REPLs. It is based on the [unrepl](https://github.com/cgrand/unrepl) protocol, so instead of relying on nREPL, unravel communicates with your Clojure process through a Socket Server REPL.
 
 Unravel is readline-enabled and aims to provide a smooth REPL user experience. Features like tab completion are planned for a future version.
@@ -77,7 +79,7 @@ Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unre
 
 ## Changes
 
-### 0.1.1
+### 0.1.2
 
 Distribute via npm
 
