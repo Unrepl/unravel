@@ -175,7 +175,7 @@
 (defn action [cx line cursor]
   (when-let [word (find-word-at line (max 0 (dec cursor)))]
     (println)
-    (send! cx (str "(clojure.repl/doc " word ")" "\n"))))
+    (send! cx (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))" "\n"))))
 
 (defn banner [host port]
   (println (str "Unravel 0.1 connected to " host ":" port "\n"))
