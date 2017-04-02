@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 while true; do
-    scripts/try
+    scripts/try "$@"
     if [[ $? != 143 ]]; then
         exit 0;
     fi

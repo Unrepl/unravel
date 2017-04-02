@@ -115,8 +115,11 @@
 
 (defmulti obey first)
 
-(defmethod obey :prompt [command rl]
-  (._refreshLine rl))
+(defmethod obey :prompt [[_ opts] rl]
+  (let [ns (get opts 'clojure.core/*ns*)]
+    (when ns
+      (.setPrompt rl (str ns "=> ")))
+    (._refreshLine rl)))
 
 (defmethod obey :eval [[_ result] rl]
   (cyan #(prn result)))

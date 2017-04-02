@@ -4,7 +4,7 @@
 - [x] improve docs
 - [x] add npm version badge
 - [ ] add `--version` cli switch
-- [ ] show current namespace
+- [x] show current namespace
 - [ ] use defrecord for tagged values, i.e. ratios, classes etc
 - [ ] persistent history
 - [ ] lazy seq elisions
