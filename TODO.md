@@ -6,14 +6,15 @@
 - [x] add `--version` cli switch
 - [x] show current namespace
 - [x] handle empty lines
-- [ ] multi-line input
+- [x] Tab completion
 - [x] use defrecord for tagged values, i.e. ratios, classes etc
 - [x] persistent history
-- [ ] lazy seq elisions
 - [x] pretty-printing exceptions
 - [x] clear on C-C
+- [ ] update payload
+- [ ] lazy seq elisions
+- [ ] multi-line input
 - [ ] interrupt eval on Control-C
-- [ ] Tab completion
 - [ ] highlighting parens (a la lumo)
 - [ ] tests
 - [ ] gensym unrepl namespace

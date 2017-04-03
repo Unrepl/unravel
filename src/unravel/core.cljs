@@ -271,7 +271,7 @@
                  :path (.join path (os-homedir) ".unravel" "history")
                  :maxLength 1000
                  :completer (fn [line cb]
-                              (when-let [word (find-word-at line (count line))]
+                              (let [word (or (find-word-at line (count line)) "")]
                                 (let [counter (send! cx eval-counter (str (cmd-complete word)))]
                                   (swap! eval-handlers assoc counter
                                          (fn [result]
