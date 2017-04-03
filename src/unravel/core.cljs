@@ -113,7 +113,7 @@
 (defmulti process first)
 
 (defmethod process :prompt [[_ opts] rl]
-  (let [ns (get opts 'clojure.core/*ns*)]
+  (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
       (.setPrompt rl (str ns "=> ")))
     (._refreshLine rl)))
@@ -210,10 +210,7 @@
              (action cx (.-line rl) (.-cursor rl)))))))
 
 (defn start [host port]
-  (doseq [t '[unrepl/ns unrepl/raw unrepl/edn
-              unrepl/param unrepl/... unrepl/object
-              unrepl.java/class unrepl/ratio error]]
-    (cljs.reader/register-tag-parser! t identity))
+  (cljs.reader/register-default-tag-parser! tagged-literal)
   (let [istream js/process.stdin
         ostream js/process.stdout
         opts #js{:input istream

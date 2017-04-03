@@ -5,9 +5,9 @@
 - [x] add npm version badge
 - [x] add `--version` cli switch
 - [x] show current namespace
-- [ ] handle empty lines
+- [x] handle empty lines
 - [ ] multi-line input
-- [ ] use defrecord for tagged values, i.e. ratios, classes etc
+- [x] use defrecord for tagged values, i.e. ratios, classes etc
 - [x] persistent history
 - [ ] lazy seq elisions
 - [ ] pretty-printing exceptions
