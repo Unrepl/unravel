@@ -11,6 +11,8 @@
 - [x] persistent history
 - [ ] lazy seq elisions
 - [ ] pretty-printing exceptions
+- [ ] clear on C-C
 - [ ] interrupt eval on Control-C
 - [ ] Tab completion
 - [ ] highlighting parens (a la lumo)
+- [ ] tests
