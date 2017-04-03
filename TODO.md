@@ -11,6 +11,7 @@
 - [x] persistent history
 - [x] pretty-printing exceptions
 - [x] clear on C-C
+- [ ] bump lumo version
 - [ ] update payload
 - [ ] lazy seq elisions
 - [ ] multi-line input

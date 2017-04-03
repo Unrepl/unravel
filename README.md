@@ -69,7 +69,7 @@ JVM_OPTS='-Dclojure.server.myrepl={:port,50505,:accept,clojure.core.server/repl}
 Using a pain Clojure jar:
 
 ```
-java -Dclojure.server.myrepl="{:port 50505 :accept clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar
+java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar
 ```
 
 You can then connect to the process by running unravel in a separate terminal window:
@@ -85,6 +85,13 @@ Unravel is early stages. See [TODO.md](TODO.md) for a list of planned improvemen
 Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unrepl).
 
 ## Changes
+
+### 0.1.4
+
+- Tab completion (namespaces and vars)
+- Pretty-print exceptions
+- Use tagged literals
+- Re-prompt on newline or Control-C
 
 ### 0.1.3
 
