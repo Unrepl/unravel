@@ -384,7 +384,7 @@
                        request-exit
                        (let [c (char n)]
                          (cond
-                           (or (Character/isWhitespace c) (= \, c)) (recur)
+                           ;;(or (Character/isWhitespace c) (= \, c)) (recur)
                            (= CTRL-D c) request-exit
                            (= CTRL-P c) (do (var-set command-mode true) (recur))
                            :else (do

@@ -110,37 +110,31 @@
   (f)
   (treset))
 
-(defn accept [v]
-  (println "typed in:" (pr-str v)))
+(defmulti process first)
 
-(defn connect [host port on-connect on-data]
-  )
-
-(defmulti obey first)
-
-(defmethod obey :prompt [[_ opts] rl]
+(defmethod process :prompt [[_ opts] rl]
   (let [ns (get opts 'clojure.core/*ns*)]
     (when ns
       (.setPrompt rl (str ns "=> ")))
     (._refreshLine rl)))
 
-(defmethod obey :eval [[_ result] rl]
+(defmethod process :eval [[_ result] rl]
   (cyan #(prn result)))
 
-(defmethod obey :exception [[_ e] rl]
+(defmethod process :exception [[_ e] rl]
   (red #(println (rstrip-one (with-out-str (pprint e))))))
 
-(defmethod obey :out [[_ s] rl]
+(defmethod process :out [[_ s] rl]
   (.write js/process.stdout s))
 
-(defmethod obey :unrepl/hello [command rl])
+(defmethod process :unrepl/hello [command rl])
 
-(defmethod obey :default [command rl]
+(defmethod process :default [command rl]
   (println "WARNING: unknown command" (pr-str command)))
 
 (defn did-receive [rl command]
   (dbug :receive command)
-  (obey command rl))
+  (process command rl))
 
 (defn edn-stream [stream on-read]
   (let [buf (StringBuffer.)]

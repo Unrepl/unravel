@@ -1,3 +1,7 @@
 #!/bin/bash
 
-exec rlwrap java -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar scripts/socket.clj
+if [[ "$1" == "--test" ]]; then
+    exec rlwrap java -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar scripts/socket.clj
+else
+    exec rlwrap java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar
+fi
