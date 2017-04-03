@@ -10,9 +10,10 @@
 - [x] use defrecord for tagged values, i.e. ratios, classes etc
 - [x] persistent history
 - [ ] lazy seq elisions
-- [ ] pretty-printing exceptions
-- [ ] clear on C-C
+- [x] pretty-printing exceptions
+- [x] clear on C-C
 - [ ] interrupt eval on Control-C
 - [ ] Tab completion
 - [ ] highlighting parens (a la lumo)
 - [ ] tests
+- [ ] gensym unrepl namespace

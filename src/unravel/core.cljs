@@ -228,6 +228,10 @@
     (.on rl "close" (fn []
                       (println)
                       (.exit js/process)))
+    (.on rl "SIGINT" (fn []
+                       (println)
+                       (.clearLine rl)
+                       (._refreshLine rl)))
     (.on istream "keypress"
          (fn [chunk key]
            (when (and (.-ctrl key) (= "o" (.-name key)))
