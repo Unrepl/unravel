@@ -89,7 +89,7 @@
 (defn pretty-ex-type [sy]
   (-> sy
       str
-      (clojure.string/replace #"^clojure\.lang\." "")))
+      (clojure.string/replace #"^clojure\.lang\.[A-Za-z0-9]+\$|^clojure\.lang\.|^java\.lang\." "")))
 
 (defn print-location [location]
   (if (vector? location)
