@@ -142,8 +142,11 @@
       (.setPrompt rl (str ns "=> ")))
     (._refreshLine rl)))
 
-(defmethod process :eval [[_ result] rl]
-  (cyan #(prn result)))
+(defmethod process :eval [[_ result counter] rl eval-handlers]
+  (let [f (-> @eval-handlers (get counter))]
+    (if f
+      (f result)
+      (cyan #(prn result)))))
 
 (defmethod process :exception [[_ e] rl]
   (red #(println (rstrip-one (with-out-str (print-ex-form e))))))
@@ -156,9 +159,9 @@
 (defmethod process :default [command rl]
   (println "WARNING: unknown command" (pr-str command)))
 
-(defn did-receive [rl command]
+(defn did-receive [rl command eval-handlers]
   (dbug :receive command)
-  (process command rl))
+  (process command rl eval-handlers))
 
 (defn edn-stream [stream on-read]
   (let [buf (StringBuffer.)]
@@ -187,10 +190,11 @@
     (reset! !on-readable on-readable)
     (.on stream "readable" on-readable)))
 
-(defn send! [cx s]
+(defn send! [cx eval-counter s]
   (dbug :send s)
   (.write cx s "utf8")
-  (.write cx "\n" "utf8"))
+  (.write cx "\n" "utf8")
+  (swap! eval-counter inc))
 
 (defn cmd-complete [prefix]
   (list 'let ['prefix prefix]
@@ -199,10 +203,10 @@
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
 
-(defn action [cx line cursor]
+(defn action [cx eval-counter line cursor]
   (when-let [word (find-word-at line (max 0 (dec cursor)))]
     (println)
-    (send! cx (str (cmd-doc word)))))
+    (send! cx eval-counter (str (cmd-doc word)))))
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
@@ -213,47 +217,53 @@
        "/"
        path))
 
-(defn start* [istream ostream rl host port]
-  (let [cx (.Socket. net)]
-    (doto cx
-      (.connect port
-                host
-                (fn []
-                  (.setNoDelay cx true)
-                  (.write cx (-> "scripts/payload.clj" resource lumo.io/slurp))))
-      (.on "error" (fn [err]
-                     (println "Socket error:" (pr-str err))
-                     (js/process.exit 1)))
-      (consume-until "[:unrepl/hello"
-                     (fn []
-                       (banner host port)
-                       (edn-stream cx (fn [v]
-                                        (did-receive rl v))))))
-    (.on rl "line" (fn [line]
-                     (.write cx
-                             (str line "\n")
-                             "utf8")))
-    (.on rl "close" (fn []
-                      (println)
-                      (.exit js/process)))
-    (.on rl "SIGINT" (fn []
-                       (println)
-                       (.clearLine rl)
-                       (._refreshLine rl)))
-    (.on istream "keypress"
-         (fn [chunk key]
-           (when (and (.-ctrl key) (= "o" (.-name key)))
-             (action cx (.-line rl) (.-cursor rl)))))))
+(defn start* [istream ostream rl cx host port eval-counter eval-handlers]
+  (doto cx
+    (.connect port
+              host
+              (fn []
+                (.setNoDelay cx true)
+                (.write cx (-> "scripts/payload.clj" resource lumo.io/slurp))))
+    (.on "error" (fn [err]
+                   (println "Socket error:" (pr-str err))
+                   (js/process.exit 1)))
+    (consume-until "[:unrepl/hello"
+                   (fn []
+                     (banner host port)
+                     (edn-stream cx (fn [v]
+                                      (did-receive rl v eval-handlers))))))
+  (.on rl "line" (fn [line]
+                   (send! cx eval-counter line)))
+  (.on rl "close" (fn []
+                    (println)
+                    (.exit js/process)))
+  (.on rl "SIGINT" (fn []
+                     (println)
+                     (.clearLine rl)
+                     (._refreshLine rl)))
+  (.on istream "keypress"
+       (fn [chunk key]
+         (when (and (.-ctrl key) (= "o" (.-name key)))
+           (action cx eval-counter (.-line rl) (.-cursor rl))))))
 
 (defn start [host port]
   (cljs.reader/register-default-tag-parser! tagged-literal)
   (let [istream js/process.stdin
         ostream js/process.stdout
+        eval-handlers (atom {})
+        eval-counter (atom 0)
+        cx (.Socket. net)
         opts #js{:input istream
                  :output ostream
                  :path (.join path (os-homedir) ".unravel" "history")
                  :maxLength 1000
-                 :next #(start* istream ostream % host port)}]
+                 :completer (fn [line cb]
+                              (when-let [word (find-word-at line (count line))]
+                                (let [counter (send! cx eval-counter (str (cmd-complete word)))]
+                                  (swap! eval-handlers assoc counter
+                                         (fn [result]
+                                           (cb nil (clj->js [(map str result) word])))))))
+                 :next #(start* istream ostream % cx host port eval-counter eval-handlers)}]
     (.createInterface readline opts)))
 
 (defn fail [message]
