@@ -6,11 +6,7 @@ Unravel your REPL
 
 Unravel is a simple command-line client for Clojure REPLs. It is based on the [unrepl](https://github.com/cgrand/unrepl) protocol, so instead of relying on nREPL, unravel communicates with your Clojure process through a Socket Server REPL.
 
-Unravel is readline-enabled and aims to provide a smooth REPL user experience. Features like tab completion are planned for a future version.
-
-## Status
-
-Unravel is functional but should be considered a preview release
+Unravel is readline-enabled and aims to provide a (comparatively) rich user experience.
 
 ## Installation
 
@@ -49,6 +45,7 @@ In addition to common readline shortcuts, the following keybindings are availabl
 
 - `Control-D`: exit the REPL
 - `Control-O`: show docstring for symbol under the cursor
+- `<Tab>`: complete var or namespace
 
 ## Launching a Socket REPL
 
@@ -105,7 +102,7 @@ Distribute via npm
 
 Show docstring
 
-## Further Reading
+## Links
 
 The Ultimate Guide To Clojure REPLs on the [Socket REPL](https://lambdaisland.com/guides/clojure-repls/clojure-repls#orgheadline20)
 
