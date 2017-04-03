@@ -198,7 +198,20 @@
 
 (defn cmd-complete [prefix]
   (list 'let ['prefix prefix]
-        '(->> (ns-map *ns*) keys (filter #(-> % str (.startsWith prefix))) sort)))
+        '(let [all (all-ns)
+               [_ ns va] (re-matches #"^(.*)/(.*)$" prefix)
+               vars (->> (if ns
+                           (some->> ns
+                                    symbol
+                                    find-ns
+                                    ns-publics)
+                           (ns-map *ns*))
+                         keys)
+               nss (when-not ns
+                     (->> (all-ns) (map ns-name)))]
+           (->> (concat vars nss)
+                (filter #(-> % str (.startsWith (or va prefix))))
+                sort))))
 
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
