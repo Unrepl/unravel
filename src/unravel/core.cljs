@@ -189,12 +189,20 @@
 
 (defn send! [cx s]
   (dbug :send s)
-  (.write cx s "utf8"))
+  (.write cx s "utf8")
+  (.write cx "\n" "utf8"))
+
+(defn cmd-complete [prefix]
+  (list 'let ['prefix prefix]
+        '(->> (ns-map *ns*) keys (filter #(-> % str (.startsWith prefix))) sort)))
+
+(defn cmd-doc [word]
+  (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
 
 (defn action [cx line cursor]
   (when-let [word (find-word-at line (max 0 (dec cursor)))]
     (println)
-    (send! cx (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))" "\n"))))
+    (send! cx (str (cmd-doc word)))))
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
