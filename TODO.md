@@ -11,10 +11,10 @@
 - [x] persistent history
 - [x] pretty-printing exceptions
 - [x] clear on C-C
+- [x] update payload
+- [ ] lazy seq elisions
 - [ ] reverse-search in history
 - [ ] bump lumo version
-- [ ] update payload
-- [ ] lazy seq elisions
 - [ ] multi-line input
 - [ ] interrupt eval on Control-C
 - [ ] highlighting parens (a la lumo)

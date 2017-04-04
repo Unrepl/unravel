@@ -7,7 +7,7 @@
             [unravel.version :as uv])
   (:import [goog.string StringBuffer]))
 
-(def path (js/require "path"))
+(def join-path (.-join (js/require "path")))
 (def readline (js/require "historic-readline"))
 (def net (js/require "net"))
 (def os-homedir (js/require "os-homedir"))
@@ -157,7 +157,7 @@
 (defmethod process :unrepl/hello [command rl])
 
 (defmethod process :default [command rl]
-  (println "WARNING: unknown command" (pr-str command)))
+  (dbug [:unknown-command command]))
 
 (defn did-receive [rl command eval-handlers]
   (dbug :receive command)
@@ -225,10 +225,15 @@
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
   (println "Type ^O for docs of symbol under cursor, ^D to quit"))
 
-(defn resource [path]
-  (str (or js/process.env.UNRAVEL_HOME ".")
-       "/"
-       path))
+(defn read-payload []
+  (-> (->> ["print.clj" "repl.clj"]
+           (map #(join-path (or js/process.env.UNRAVEL_HOME ".")
+                            "src"
+                            "unrepl"
+                            %))
+           (mapv lumo.io/slurp))
+      (conj "(unrepl.repl/start)")
+      (clojure.string/join)))
 
 (defn start* [istream ostream rl cx host port eval-counter eval-handlers]
   (doto cx
@@ -236,7 +241,8 @@
               host
               (fn []
                 (.setNoDelay cx true)
-                (.write cx (-> "scripts/payload.clj" resource lumo.io/slurp))))
+                (.write cx (read-payload))
+                (.write cx "\n")))
     (.on "error" (fn [err]
                    (println "Socket error:" (pr-str err))
                    (js/process.exit 1)))
@@ -268,7 +274,7 @@
         cx (.Socket. net)
         opts #js{:input istream
                  :output ostream
-                 :path (.join path (os-homedir) ".unravel" "history")
+                 :path (join-path (os-homedir) ".unravel" "history")
                  :maxLength 1000
                  :completer (fn [line cb]
                               (let [word (or (find-word-at line (count line)) "")]
