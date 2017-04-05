@@ -12,7 +12,9 @@
 - [x] pretty-printing exceptions
 - [x] clear on C-C
 - [x] update payload
+- [ ] M-x
 - [ ] lazy seq elisions
+- [ ] restore namespace prompts
 - [ ] reverse-search in history
 - [ ] bump lumo version
 - [ ] multi-line input
@@ -20,3 +22,4 @@
 - [ ] highlighting parens (a la lumo)
 - [ ] tests
 - [ ] gensym unrepl namespace
+- [ ] C-C twice to quit

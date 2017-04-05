@@ -115,6 +115,9 @@
   (when @debug?
     (prn (vec args))))
 
+(defn info [& args]
+  (prn (vec args)))
+
 (defn tred []
   (.write js/process.stdout "\33[31m"))
 
@@ -157,7 +160,7 @@
 (defmethod process :unrepl/hello [command rl])
 
 (defmethod process :default [command rl]
-  (dbug [:unknown-command command]))
+  (dbug :unknown-command command))
 
 (defn did-receive [rl command eval-handlers]
   (dbug :receive command)
@@ -216,7 +219,7 @@
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
 
-(defn action [cx eval-counter line cursor]
+(defn do-doc [cx eval-counter line cursor]
   (when-let [word (find-word-at line (max 0 (dec cursor)))]
     (println)
     (send! cx eval-counter (str (cmd-doc word)))))
@@ -262,8 +265,9 @@
                      (._refreshLine rl)))
   (.on istream "keypress"
        (fn [chunk key]
-         (when (and (.-ctrl key) (= "o" (.-name key)))
-           (action cx eval-counter (.-line rl) (.-cursor rl))))))
+         (cond
+           (and (.-ctrl key) (= "o" (.-name key)))
+           (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
 
 (defn start [host port]
   (cljs.reader/register-default-tag-parser! tagged-literal)
