@@ -224,22 +224,29 @@
   (.write cx "\n" "utf8")
   (swap! eval-counter inc))
 
+
+;; use qualified symbols in case code is invoked
+;; after calling (in-ns 'invalid-ns)
+
 (defn cmd-complete [prefix]
-  (list 'let ['prefix prefix]
-        '(let [all (all-ns)
-               [_ ns va] (re-matches #"^(.*)/(.*)$" prefix)
-               vars (->> (if ns
-                           (some->> ns
-                                    symbol
-                                    find-ns
-                                    ns-publics)
-                           (ns-map *ns*))
-                         keys)
-               nss (when-not ns
-                     (->> (all-ns) (map ns-name)))]
-           (->> (concat vars nss)
-                (filter #(-> % str (.startsWith (or va prefix))))
-                sort))))
+  (list 'clojure.core/let ['prefix prefix]
+        '(clojure.core/let [all (clojure.core/all-ns)
+                            [_ ns va] (clojure.core/re-matches #"^(.*)/(.*)$" prefix)
+                            vars (clojure.core/->> (if ns
+                                                     (clojure.core/some->> ns
+                                                                           clojure.core/symbol
+                                                                           clojure.core/find-ns
+                                                                           clojure.core/ns-publics)
+                                                     (clojure.core/ns-map clojure.core/*ns*))
+                                                   clojure.core/keys)
+                            nss (clojure.core/when-not ns
+                                  (clojure.core/->> (clojure.core/all-ns)
+                                                    (clojure.core/map clojure.core/ns-name)))]
+           (clojure.core/->> (clojure.core/concat vars nss)
+                             (clojure.core/filter #(clojure.core/-> %
+                                                                    clojure.core/str
+                                                                    (.startsWith (clojure.core/or va prefix))))
+                             clojure.core/sort))))
 
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
@@ -301,6 +308,21 @@
            (and (.-ctrl key) (= "o" (.-name key)))
            (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
 
+(defn once-many [& fs]
+  (let [done? (atom false)]
+    (map (fn [f] (fn [& args]
+                   (when-not @done?
+                     (reset! done? true)
+                     (apply f args))))
+         fs)))
+
+(defn once [f]
+  (let [done? (atom false)]
+    (fn [& args]
+      (when-not @done?
+        (reset! done? true)
+        (apply f args)))))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -312,11 +334,16 @@
                  :path (join-path (os-homedir) ".unravel" "history")
                  :maxLength 1000
                  :completer (fn [line cb]
-                              (let [word (or (find-word-at line (count line)) "")]
+                              (let [word (or (find-word-at line (count line)) "")
+                                    timeout (fn []
+                                              (println "\n*** completer timed out ***")
+                                              (cb nil #js[#js[] word]))
+                                    [cb* timeout*] (once-many cb timeout)]
                                 (let [counter (send! cx eval-counter (str (cmd-complete word)))]
+                                  (js/setTimeout timeout* 3000)
                                   (swap! eval-handlers assoc counter
                                          (fn [result]
-                                           (cb nil (clj->js [(map str result) word])))))))
+                                           (cb* nil (clj->js [(map str result) word])))))))
                  :next #(start* istream ostream % cx host port eval-counter eval-handlers)}]
     (.createInterface readline opts)))
 

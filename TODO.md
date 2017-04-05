@@ -1,7 +1,3 @@
-## Release todo
-
-- freeze after in-ns
-
 ## Features
 
 - [x] show clojure.repl/doc on current form on shortcut
@@ -33,3 +29,7 @@
 - [ ] C-C twice to quit
 - [ ] print arglist automatically as you're typing a symbol
 - [ ] apropos, macroexpand, show-arglist
+
+## Release todo
+
+- ...
