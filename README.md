@@ -47,6 +47,11 @@ In addition to common readline shortcuts, the following keybindings are availabl
 - `Control-O`: show docstring for symbol under the cursor
 - `<Tab>`: complete var or namespace
 
+Lines starting with `#__` are treated as special commands and interpreted by the REPL client. The following specials are available:
+
+- `#__1`, `#__2`, `#__3` ...: expand the numberd lazy seq elipsis
+- `#__`: expand the most recent lazy seq elipsis
+
 ## Launching a Socket REPL
 
 You can easily enable the Socket REPL feature for your Clojure project, whether you use boot, lein or a plain clojure jar. The Socket REPL does not have any dependencies other than Clojure 1.8.0.
@@ -76,6 +81,10 @@ unravel localhost 50505
 ```
 
 ## Changes
+
+### 0.1.5
+
+- Expand lazy seq elipsis
 
 ### 0.1.4
 

@@ -1,3 +1,3 @@
 (ns unravel.version)
 
-(def version "0.1.4")
+(def version "0.1.5")
