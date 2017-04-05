@@ -1,3 +1,9 @@
+## Release todo
+
+- freeze after in-ns
+
+## Features
+
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [x] release bundle
@@ -16,7 +22,7 @@
 - [ ] add screenshot
 - [ ] add dumb terminal mode (`-d`)
 - [x] lazy seq elisions
-- [ ] restore namespace prompts
+- [x] restore namespace prompts
 - [ ] reverse-search in history
 - [ ] bump lumo version
 - [ ] multi-line input

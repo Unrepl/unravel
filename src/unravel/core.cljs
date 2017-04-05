@@ -174,12 +174,15 @@
       (cyan #(prn result)))))
 
 (defmethod process :exception [[_ e] rl]
-  (red #(println (rstrip-one (with-out-str (print-ex-form e))))))
+  (red #(println (rstrip-one (with-out-str (print-ex-form (:ex e)))))))
 
 (defmethod process :out [[_ s] rl]
   (.write js/process.stdout s))
 
 (defmethod process :unrepl/hello [command rl])
+
+(defmethod process :started-eval [command rl])
+(defmethod process :echo [command rl])
 
 (defmethod process :default [command rl]
   (dbug :unknown-command command))
@@ -261,9 +264,9 @@
       (clojure.string/join)))
 
 (defn special [cx eval-counter rl num]
-  (when-let [cmd (get @elipsis-store (or num @elipsis-counter))]
-    (send! cx eval-counter (str cmd)))
-  (.prompt rl))
+  (if-let [cmd (get @elipsis-store (or num @elipsis-counter))]
+    (send! cx eval-counter (str cmd))
+    (.prompt rl)))
 
 (defn start* [istream ostream rl cx host port eval-counter eval-handlers]
   (doto cx

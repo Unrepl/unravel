@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd ../unrepl
+git pull
+cp src/unrepl/{print.clj,repl.clj} ../unravel/src/unrepl/
