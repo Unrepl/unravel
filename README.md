@@ -14,7 +14,7 @@ To use unravel you need Clojure 1.8.0 or above.
 
 ### Simple installation using npm
 
-On Linux or macOS you can install unravel via npm:
+On Linux or macOS you can install (or update) unravel via npm:
 
 ```
 sudo npm install -g lumo-cljs unravel-repl
@@ -83,9 +83,15 @@ unravel localhost 50505
 
 ## Changes
 
+### 0.1.6
+
+- Fix installation via NPM
+
 ### 0.1.5
 
+- Add repl specials
 - Expand lazy seq ellipsis
+- Fix issue with non-existant namespaces
 
 ### 0.1.4
 
