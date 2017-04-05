@@ -111,6 +111,28 @@
 
 ;; ------
 
+(defonce elipsis-counter (atom 0))
+
+(defonce elipsis-store (atom {}))
+
+(defrecord Elipsis [get])
+
+(defn elipsis [m]
+  (map->Elipsis m))
+
+(extend-protocol IPrintWithWriter
+  Elipsis
+  (-pr-writer [v writer _]
+    (let [counter (swap! elipsis-counter inc)]
+      (swap! elipsis-store assoc counter (:get v))
+      (write-all writer "#__" counter))))
+
+(defn register-tag-parsers []
+  (cljs.reader/register-default-tag-parser! tagged-literal)
+  (cljs.reader/register-tag-parser! 'unrepl/... elipsis))
+
+;; ------
+
 (defn dbug [& args]
   (when @debug?
     (prn (vec args))))
@@ -238,6 +260,11 @@
       (conj "(unrepl.repl/start)")
       (clojure.string/join)))
 
+(defn special [cx eval-counter rl num]
+  (when-let [cmd (get @elipsis-store (or num @elipsis-counter))]
+    (send! cx eval-counter (str cmd)))
+  (.prompt rl))
+
 (defn start* [istream ostream rl cx host port eval-counter eval-handlers]
   (doto cx
     (.connect port
@@ -255,7 +282,9 @@
                      (edn-stream cx (fn [v]
                                       (did-receive rl v eval-handlers))))))
   (.on rl "line" (fn [line]
-                   (send! cx eval-counter line)))
+                   (if-let [[_ num] (re-matches #"^\s*#__(\d*)?\s*$" line)]
+                     (special cx eval-counter rl (when num (js/parseInt num)))
+                     (send! cx eval-counter line))))
   (.on rl "close" (fn []
                     (println)
                     (.exit js/process)))
@@ -270,7 +299,6 @@
            (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
 
 (defn start [host port]
-  (cljs.reader/register-default-tag-parser! tagged-literal)
   (let [istream js/process.stdin
         ostream js/process.stdout
         eval-handlers (atom {})
@@ -311,7 +339,11 @@
           []
           args))
 
+(defn init []
+  (register-tag-parsers))
+
 (defn -main [& more]
+  (init)
   (let [[host port :as args] (parse more)]
     (when-not (= 2 (count args))
       (fail "Syntax: unravel [--debug] <host> <port>\n        unravel --version"))

@@ -75,12 +75,6 @@ You can then connect to the process by running unravel in a separate terminal wi
 unravel localhost 50505
 ```
 
-## Future work
-
-Unravel is early stages. See [TODO.md](TODO.md) for a list of planned improvements.
-
-Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unrepl).
-
 ## Changes
 
 ### 0.1.4
@@ -102,9 +96,15 @@ Distribute via npm
 
 Show docstring
 
-## Links
+## Future work
 
-The Ultimate Guide To Clojure REPLs on the [Socket REPL](https://lambdaisland.com/guides/clojure-repls/clojure-repls#orgheadline20)
+See [TODO.md](TODO.md) for a list of planned improvements. Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unrepl).
+
+## Related work
+
+- The Ultimate Guide To Clojure REPLs on the [Socket REPL](https://lambdaisland.com/guides/clojure-repls/clojure-repls#orgheadline20)
+
+- [replicant](https://github.com/puredanger/replicant): proof of concept of using Socket REPL for tooling
 
 ## Copyright
 

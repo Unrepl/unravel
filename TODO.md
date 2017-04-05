@@ -13,7 +13,9 @@
 - [x] clear on C-C
 - [x] update payload
 - [ ] M-x
-- [ ] lazy seq elisions
+- [ ] add screenshot
+- [ ] add dumb terminal mode (`-d`)
+- [x] lazy seq elisions
 - [ ] restore namespace prompts
 - [ ] reverse-search in history
 - [ ] bump lumo version
@@ -23,3 +25,5 @@
 - [ ] tests
 - [ ] gensym unrepl namespace
 - [ ] C-C twice to quit
+- [ ] print arglist automatically as you're typing a symbol
+- [ ] apropos, macroexpand, show-arglist
