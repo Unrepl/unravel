@@ -111,25 +111,25 @@
 
 ;; ------
 
-(defonce elipsis-counter (atom 0))
+(defonce ellipsis-counter (atom 0))
 
-(defonce elipsis-store (atom {}))
+(defonce ellipsis-store (atom {}))
 
-(defrecord Elipsis [get])
+(defrecord Ellipsis [get])
 
-(defn elipsis [m]
-  (map->Elipsis m))
+(defn ellipsis [m]
+  (map->Ellipsis m))
 
 (extend-protocol IPrintWithWriter
-  Elipsis
+  Ellipsis
   (-pr-writer [v writer _]
-    (let [counter (swap! elipsis-counter inc)]
-      (swap! elipsis-store assoc counter (:get v))
+    (let [counter (swap! ellipsis-counter inc)]
+      (swap! ellipsis-store assoc counter (:get v))
       (write-all writer "#__" counter))))
 
 (defn register-tag-parsers []
   (cljs.reader/register-default-tag-parser! tagged-literal)
-  (cljs.reader/register-tag-parser! 'unrepl/... elipsis))
+  (cljs.reader/register-tag-parser! 'unrepl/... ellipsis))
 
 ;; ------
 
@@ -258,7 +258,20 @@
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
-  (println "Type ^O for docs of symbol under cursor, ^D to quit"))
+  (println "Type ^O for docs of symbol under cursor, ^D to quit")
+  (println "Enter #__help for help")
+  (println))
+
+(defn help []
+  (println)
+  (println "Type ^O for docs of symbol under cursor, ^D to quit.")
+  (println "Lines starting with `#__` are treated as special commands and
+interpreted by the REPL client. The following specials are available:
+
+- `#__help` shows a help screen
+- `#__1`, `#__2`, `#__3` ...: expand the numberd lazy seq ellipsis
+- `#__`: expand the most recent lazy seq ellipsis ")
+  (println))
 
 (defn read-payload []
   (-> (->> ["print.clj" "repl.clj"]
@@ -270,10 +283,17 @@
       (conj "(unrepl.repl/start)")
       (clojure.string/join)))
 
-(defn special [cx eval-counter rl num]
-  (if-let [cmd (get @elipsis-store (or num @elipsis-counter))]
-    (send! cx eval-counter (str cmd))
-    (.prompt rl)))
+(defn special [cx eval-counter rl cmd]
+  (cond
+    (or (= "help" cmd))
+    (do
+      (help)
+      (.prompt rl))
+
+    (or (nil? cmd) (re-matches #"^\d*$" cmd))
+    (if-let [cmd (get @ellipsis-store (or (some-> cmd js/parseInt) @ellipsis-counter))]
+      (send! cx eval-counter (str cmd))
+      (.prompt rl))))
 
 (defn start* [istream ostream rl cx host port eval-counter eval-handlers]
   (doto cx
@@ -292,8 +312,8 @@
                      (edn-stream cx (fn [v]
                                       (did-receive rl v eval-handlers))))))
   (.on rl "line" (fn [line]
-                   (if-let [[_ num] (re-matches #"^\s*#__(\d*)?\s*$" line)]
-                     (special cx eval-counter rl (when num (js/parseInt num)))
+                   (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+                     (special cx eval-counter rl cmd)
                      (send! cx eval-counter line))))
   (.on rl "close" (fn []
                     (println)

@@ -49,8 +49,9 @@ In addition to common readline shortcuts, the following keybindings are availabl
 
 Lines starting with `#__` are treated as special commands and interpreted by the REPL client. The following specials are available:
 
-- `#__1`, `#__2`, `#__3` ...: expand the numberd lazy seq elipsis
-- `#__`: expand the most recent lazy seq elipsis
+- `#__help` shows a help screen
+- `#__1`, `#__2`, `#__3` ...: expand the numberd lazy seq ellipsis
+- `#__`: expand the most recent lazy seq ellipsis
 
 ## Launching a Socket REPL
 
@@ -84,7 +85,7 @@ unravel localhost 50505
 
 ### 0.1.5
 
-- Expand lazy seq elipsis
+- Expand lazy seq ellipsis
 
 ### 0.1.4
 
