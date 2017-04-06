@@ -3,14 +3,23 @@
 import sh, re, os.path
 
 def check(m):
-    sh.bash("-c", "scripts/try <test/"+m+".clj >test/"+m+".is")
+    sh.bash("-c", "scripts/try <test/"+m+".clj >test/"+m+".is 2>test/"+m+".err")
+
+    err=open("test/"+m+".err").read()
+    if err != "":
+        print "````"
+        print err
+        print "````"
+        assert False, "Non-empty stderr"
 
     if os.path.isfile("test/"+m+".ought.regex"):
         regex = open("test/"+m+".ought.regex").read()
         s = open("test/"+m+".is").read()
 
         if not re.match(regex,s, re.MULTILINE):
+            print "````"
             print s
+            print "````"
             assert False, "Output does not match regex"
     else:
         sh.diff("-u", "test/"+m+".ought", "test/"+m+".is")
@@ -18,3 +27,5 @@ def check(m):
 for n in ["basic", "exception"]:
     print "Testing " + n + "..."
     check(n)
+
+print "OK"

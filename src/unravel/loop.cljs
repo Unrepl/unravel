@@ -6,34 +6,13 @@
             [cljs.reader :refer [read-string]]
             [unravel.version :as uv]
             [unravel.node :as un]
+            [unravel.network :as uw]
             [unravel.terminal :as ut]
+            [unravel.tags :as ug]
             [unravel.log :as ud]
             [unravel.util :as uu]
             [unravel.lisp :as ul]
-            [unravel.exception :as ue])
-  (:import [goog.string StringBuffer]))
-
-(defonce ellipsis-counter (atom 0))
-
-(defonce ellipsis-store (atom {}))
-
-(defrecord Ellipsis [get])
-
-(defn ellipsis [m]
-  (map->Ellipsis m))
-
-(extend-protocol IPrintWithWriter
-  Ellipsis
-  (-pr-writer [v writer _]
-    (let [counter (swap! ellipsis-counter inc)]
-      (swap! ellipsis-store assoc counter (:get v))
-      (write-all writer "#__" counter))))
-
-(defn register-tag-parsers []
-  (cljs.reader/register-default-tag-parser! tagged-literal)
-  (cljs.reader/register-tag-parser! 'unrepl/... ellipsis))
-
-;; ------
+            [unravel.exception :as ue]))
 
 (defmulti process first)
 
@@ -72,45 +51,6 @@
   (ud/dbug :receive command)
   (process command rl eval-handlers done-cb))
 
-(defn edn-stream [stream on-read]
-  (let [buf (StringBuffer.)
-        active? (atom true)
-        done-cb (fn []
-                  (ud/dbug :done)
-                  (reset! active? false))]
-    (.on stream "readable"
-         (fn []
-           (when-let [data (.read stream)]
-             (when @active?
-               (.append buf (.toString data "utf8"))
-               (when-let [[v rst] (ul/safe-read-string (.toString buf))]
-                 (on-read v done-cb)
-                 (.clear buf)
-                 (when rst
-                   (.unshift stream (js/Buffer.from rst "utf8"))))))))))
-
-(defn consume-until [stream sentinel cb]
-  (let [buf (StringBuffer.)
-        !on-readable (atom nil)
-        on-readable (fn []
-                      (when-let [data (.read stream)]
-                        (.append buf (.toString data "utf8"))
-                        (let [s (.toString buf)
-                              idx (.indexOf s sentinel)]
-                          (when (not= -1 idx)
-                            (.removeListener stream "readable" @!on-readable)
-                            (cb)
-                            (.unshift stream (js/Buffer.from (subs s idx) "utf8"))))))]
-    (reset! !on-readable on-readable)
-    (.on stream "readable" on-readable)))
-
-(defn send! [cx eval-counter s]
-  (ud/dbug :send s)
-  (.write cx s "utf8")
-  (.write cx "\n" "utf8")
-  (swap! eval-counter inc))
-
-
 ;; use qualified symbols in case code is invoked
 ;; after calling (in-ns 'invalid-ns)
 
@@ -140,7 +80,7 @@
 (defn do-doc [cx eval-counter line cursor]
   (when-let [word (ul/find-word-at line (max 0 (dec cursor)))]
     (println)
-    (send! cx eval-counter (str (cmd-doc word)))))
+    (uw/send! cx eval-counter (str (cmd-doc word)))))
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
@@ -177,8 +117,8 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl))
 
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
-    (if-let [cmd (get @ellipsis-store (or (some-> cmd js/parseInt) @ellipsis-counter))]
-      (send! cx eval-counter (str cmd))
+    (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
+      (uw/send! cx eval-counter (str cmd))
       (.prompt rl))))
 
 (defn start [host port]
@@ -188,12 +128,12 @@ interpreted by the REPL client. The following specials are available:
         eval-counter (atom 0)
         cx (.Socket. un/net)
         setup-rl (fn [rl]
-                   (edn-stream cx (fn [v done-cb]
-                                    (did-receive rl v eval-handlers done-cb)))
+                   (uw/edn-stream cx (fn [v done-cb]
+                                       (did-receive rl v eval-handlers done-cb)))
                    (.on rl "line" (fn [line]
                                     (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                       (special cx eval-counter rl cmd)
-                                      (send! cx eval-counter line))))
+                                      (uw/send! cx eval-counter line))))
                    (.on rl "close" (fn []
                                      (.end cx)))
                    (.on rl "SIGINT" (fn []
@@ -215,7 +155,7 @@ interpreted by the REPL client. The following specials are available:
                                               (println "\n*** completer timed out ***")
                                               (cb nil #js[#js[] word]))
                                     [cb* timeout*] (uu/once-many cb timeout)]
-                                (let [counter (send! cx eval-counter (str (cmd-complete word)))]
+                                (let [counter (uw/send! cx eval-counter (str (cmd-complete word)))]
                                   (js/setTimeout timeout* 3000)
                                   (swap! eval-handlers assoc counter
                                          (fn [result]
@@ -232,8 +172,8 @@ interpreted by the REPL client. The following specials are available:
       (.on "error" (fn [err]
                      (println "Socket error:" (pr-str err))
                      (js/process.exit 1)))
-      (consume-until "[:unrepl/hello"
-                     (fn []
-                       (when (ut/interactive?)
-                         (banner host port))
-                       (.createInterface un/readline opts))))))
+      (uw/consume-until "[:unrepl/hello"
+                        (fn []
+                          (when (ut/interactive?)
+                            (banner host port))
+                          (.createInterface un/readline opts))))))
