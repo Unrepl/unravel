@@ -1,9 +1,22 @@
 #!/usr/bin/env python
 
-import sh, re, os.path
+import sh, re, os.path, sys
+
+def cat(fn):
+    contents = open(fn).read()
+
+    sys.stdout.write(contents)
+    sys.stdout.flush()
 
 def check(m):
-    sh.bash("-c", "scripts/try <test/"+m+".clj >test/"+m+".is 2>test/"+m+".err")
+    try:
+        sh.bash("-c", "scripts/try <test/"+m+".clj >test/"+m+".is 2>test/"+m+".err", _fg=True)
+    except Exception as e:
+        print "````"
+        cat("test/"+m+".is")
+        cat("test/"+m+".err")
+        print "````"
+        raise e
 
     err=open("test/"+m+".err").read()
     if err != "":
@@ -24,8 +37,15 @@ def check(m):
     else:
         sh.diff("-u", "test/"+m+".ought", "test/"+m+".is")
 
-for n in ["basic", "exception"]:
-    print "Testing " + n + "..."
-    check(n)
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--standalone":
+        print "Starting Clojure process.."
+        sh.bash("scripts/server", _bg=True)
 
-print "OK"
+    for n in ["basic", "exception"]:
+        print "Testing " + n + "..."
+        check(n)
+
+    print "OK"
+
+main()

@@ -14,6 +14,9 @@
             [unravel.lisp :as ul]
             [unravel.exception :as ue]))
 
+(defn send-command [ctx s]
+  (uw/send! (:cx ctx) (:eval-counter ctx) s))
+
 (defmulti process first)
 
 (defmethod process :prompt [[_ opts] rl]
@@ -47,7 +50,7 @@
 (defmethod process :default [command rl]
   (ud/dbug :unknown-command command))
 
-(defn did-receive [rl command eval-handlers done-cb]
+(defn did-receive [{:keys [rl eval-handlers]} command done-cb]
   (ud/dbug :receive command)
   (process command rl eval-handlers done-cb))
 
@@ -77,10 +80,10 @@
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
 
-(defn do-doc [cx eval-counter line cursor]
+(defn do-doc [ctx line cursor]
   (when-let [word (ul/find-word-at line (max 0 (dec cursor)))]
     (println)
-    (uw/send! cx eval-counter (str (cmd-doc word)))))
+    (send-command ctx (str (cmd-doc word)))))
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
@@ -121,9 +124,6 @@ interpreted by the REPL client. The following specials are available:
       (uw/send! cx eval-counter (str cmd))
       (.prompt rl))))
 
-(defn send-command [ctx s]
-  (uw/send! (:cx ctx) (:eval-counter ctx) s))
-
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -138,7 +138,7 @@ interpreted by the REPL client. The following specials are available:
                               :cx cx
                               :rl rl}]
                      (uw/edn-stream cx (fn [v done-cb]
-                                         (did-receive rl v eval-handlers done-cb)))
+                                         (did-receive ctx v done-cb)))
                      (.on rl "line" (fn [line]
                                       (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                         (special ctx cmd)
@@ -148,12 +148,12 @@ interpreted by the REPL client. The following specials are available:
                      (.on rl "SIGINT" (fn []
                                         (println)
                                         (.clearLine rl)
-                                        (._refreshLine rl)))
+                                        (.prompt rl false)))
                      (.on istream "keypress"
                           (fn [chunk key]
                             (cond
                               (and (.-ctrl key) (= "o" (.-name key)))
-                              (do-doc cx eval-counter (.-line rl) (.-cursor rl)))))))
+                              (do-doc ctx (.-line rl) (.-cursor rl)))))))
         opts #js{:input istream
                  :output ostream
                  :path (un/join-path (un/os-homedir) ".unravel" "history")
