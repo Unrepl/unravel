@@ -10,6 +10,8 @@
 
 (def debug? (atom nil))
 
+(defn interactive? [] (.-isTTY js/process.stdin))
+
 ;; ------
 
 (defn rstrip-one [s]
@@ -171,7 +173,7 @@
       (f result)
       (cyan #(prn result)))))
 
-(defmethod process :fin [[_ result counter] rl eval-handlers done-cb]
+(defmethod process :bye [[_ result counter] rl eval-handlers done-cb]
   (done-cb))
 
 (defmethod process :exception [[_ e] rl]
@@ -369,7 +371,8 @@ interpreted by the REPL client. The following specials are available:
                      (js/process.exit 1)))
       (consume-until "[:unrepl/hello"
                      (fn []
-                       (banner host port)
+                       (when (interactive?)
+                         (banner host port))
                        (.createInterface un/readline opts))))))
 
 (defn fail [message]
