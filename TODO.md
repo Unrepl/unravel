@@ -36,5 +36,6 @@
 
 ## Bugs
 
+- restore unrepl code
 - Completion timeout even if successful
 - read phase exceptions -> unresponsive

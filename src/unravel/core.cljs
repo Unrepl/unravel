@@ -169,6 +169,9 @@
       (f result)
       (cyan #(prn result)))))
 
+(defmethod process :fin [[_ result counter] rl eval-handlers done-cb]
+  (done-cb))
+
 (defmethod process :exception [[_ e] rl]
   (red #(println (rstrip-one (with-out-str (print-ex-form (:ex e)))))))
 
@@ -183,21 +186,26 @@
 (defmethod process :default [command rl]
   (dbug :unknown-command command))
 
-(defn did-receive [rl command eval-handlers]
+(defn did-receive [rl command eval-handlers done-cb]
   (dbug :receive command)
-  (process command rl eval-handlers))
+  (process command rl eval-handlers done-cb))
 
 (defn edn-stream [stream on-read]
-  (let [buf (StringBuffer.)]
+  (let [buf (StringBuffer.)
+        active? (atom true)
+        done-cb (fn []
+                  (dbug [:done])
+                  (reset! active? false))]
     (.on stream "readable"
          (fn []
            (when-let [data (.read stream)]
-             (.append buf (.toString data "utf8"))
-             (when-let [[v rst] (safe-read-string (.toString buf))]
-               (on-read v)
-               (.clear buf)
-               (when rst
-                 (.unshift stream (js/Buffer.from rst "utf8")))))))))
+             (when @active?
+               (.append buf (.toString data "utf8"))
+               (when-let [[v rst] (safe-read-string (.toString buf))]
+                 (on-read v done-cb)
+                 (.clear buf)
+                 (when rst
+                   (.unshift stream (js/Buffer.from rst "utf8"))))))))))
 
 (defn consume-until [stream sentinel cb]
   (let [buf (StringBuffer.)

@@ -1,6 +1,6 @@
 (ns unrepl.repl
   (:require [clojure.main :as m]
-    [unrepl.print :as p]))
+            [unrepl.print :as p]))
 
 (defn tagging-writer
   ([write]
@@ -49,14 +49,14 @@
       ([cbuf off len] (before-read) (.read r cbuf off len)))))
 
 (defn- close-socket! [x]
-  ; hacky way because the socket is not exposed by clojure.core.server
+                                        ; hacky way because the socket is not exposed by clojure.core.server
   (loop [x x]
     (if (= "java.net.SocketInputStream" (.getName (class x)))
       (do (.close x) true)
       (when-some [^java.lang.reflect.Field field 
                   (->> x class (iterate #(.getSuperclass %)) (take-while identity)
-                    (mapcat #(.getDeclaredFields %))
-                    (some #(when (#{"in" "sd"} (.getName ^java.lang.reflect.Field %)) %)))]
+                       (mapcat #(.getDeclaredFields %))
+                       (some #(when (#{"in" "sd"} (.getName ^java.lang.reflect.Field %)) %)))]
         (recur (.get (doto field (.setAccessible true)) x))))))
 
 (defn weak-store [make-action not-found]
@@ -166,7 +166,7 @@
 
 
 (defn start []
-  ; TODO: tighten by removing the dep on m/repl
+                                        ; TODO: tighten by removing the dep on m/repl
   (with-local-vars [in-eval false
                     unrepl false
                     eval-id 0
@@ -200,9 +200,9 @@
                                                                `(some-> ~session-id session :log-all)
                                                                :set-source
                                                                `(set-file-line-col ~session-id
-                                                                  ~(tagged-literal 'unrepl/param :unrepl/sourcename)
-                                                                  ~(tagged-literal 'unrepl/param :unrepl/line)
-                                                                  ~(tagged-literal 'unrepl/param :unrepl/column))}}]))))
+                                                                                   ~(tagged-literal 'unrepl/param :unrepl/sourcename)
+                                                                                   ~(tagged-literal 'unrepl/param :unrepl/line)
+                                                                                   ~(tagged-literal 'unrepl/param :unrepl/column))}}]))))
           ensure-raw-repl (fn []
                             (when (and @in-eval @unrepl) ; reading from eval!
                               (var-set unrepl false)
@@ -218,7 +218,7 @@
                     f
                     (future
                       (swap! session-state update :current-eval
-                        assoc :thread (Thread/currentThread))
+                             assoc :thread (Thread/currentThread))
                       (with-bindings original-bindings
                         (try
                           (write [:started-eval
@@ -234,7 +234,7 @@
                             (deliver p {:ex t :bindings (get-thread-bindings)})
                             (throw t)))))]
                 (swap! session-state update :current-eval
-                  into {:eval-id @eval-id :promise p :future f})
+                       into {:eval-id @eval-id :promise p :future f})
                 (let [{:keys [ex eval bindings]} @p]
                   (doseq [[var val] bindings
                           :when (not (identical? val (original-bindings var)))]
