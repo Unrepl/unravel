@@ -165,7 +165,7 @@
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
       (.setPrompt rl (str ns "=> ")))
-    (._refreshLine rl)))
+    (.prompt rl true)))
 
 (defmethod process :eval [[_ result counter] rl eval-handlers]
   (let [f (-> @eval-handlers (get counter))]
