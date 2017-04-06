@@ -11,6 +11,7 @@
 (def debug? (atom nil))
 
 (defn interactive? [] (.-isTTY js/process.stdin))
+(defn rich? [] (.-isTTY js/process.stdout))
 
 ;; ------
 
@@ -141,13 +142,16 @@
 ;; ------
 
 (defn tred []
-  (.write js/process.stdout "\33[31m"))
+  (when (rich?)
+    (.write js/process.stdout "\33[31m")))
 
 (defn tcyan []
-  (.write js/process.stdout "\33[36m"))
+  (when (rich?)
+    (.write js/process.stdout "\33[36m")))
 
 (defn treset []
-  (.write js/process.stdout "\33[0m"))
+  (when (rich?)
+    (.write js/process.stdout "\33[0m")))
 
 (defn red [f]
   (tred)
@@ -164,7 +168,9 @@
 (defmethod process :prompt [[_ opts] rl]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
-      (.setPrompt rl (str ns "=> ")))
+      (.setPrompt rl (if (interactive?)
+                       (str ns "=> ")
+                       "")))
     (.prompt rl true)))
 
 (defmethod process :eval [[_ result counter] rl eval-handlers]

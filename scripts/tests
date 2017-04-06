@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+scripts/try < test/basic.clj > test/basic.is
+
+diff -u test/basic.{ought,is}
