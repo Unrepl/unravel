@@ -107,6 +107,15 @@
 
 ;; ------
 
+(defn dbug [& args]
+  (when @debug?
+    (prn (vec args))))
+
+(defn info [& args]
+  (prn (vec args)))
+
+;; ------
+
 (defonce ellipsis-counter (atom 0))
 
 (defonce ellipsis-store (atom {}))
@@ -128,13 +137,6 @@
   (cljs.reader/register-tag-parser! 'unrepl/... ellipsis))
 
 ;; ------
-
-(defn dbug [& args]
-  (when @debug?
-    (prn (vec args))))
-
-(defn info [& args]
-  (prn (vec args)))
 
 (defn tred []
   (.write js/process.stdout "\33[31m"))
@@ -194,7 +196,7 @@
   (let [buf (StringBuffer.)
         active? (atom true)
         done-cb (fn []
-                  (dbug [:done])
+                  (dbug :done)
                   (reset! active? false))]
     (.on stream "readable"
          (fn []
@@ -299,39 +301,6 @@ interpreted by the REPL client. The following specials are available:
       (send! cx eval-counter (str cmd))
       (.prompt rl))))
 
-(defn start* [istream ostream rl cx host port eval-counter eval-handlers]
-  (doto cx
-    (.connect port
-              host
-              (fn []
-                (.setNoDelay cx true)
-                (.write cx (read-payload))
-                (.write cx "\n")))
-    (.on "error" (fn [err]
-                   (println "Socket error:" (pr-str err))
-                   (js/process.exit 1)))
-    (consume-until "[:unrepl/hello"
-                   (fn []
-                     (banner host port)
-                     (edn-stream cx (fn [v]
-                                      (did-receive rl v eval-handlers))))))
-  (.on rl "line" (fn [line]
-                   (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
-                     (special cx eval-counter rl cmd)
-                     (send! cx eval-counter line))))
-  (.on rl "close" (fn []
-                    (println)
-                    (.exit js/process)))
-  (.on rl "SIGINT" (fn []
-                     (println)
-                     (.clearLine rl)
-                     (._refreshLine rl)))
-  (.on istream "keypress"
-       (fn [chunk key]
-         (cond
-           (and (.-ctrl key) (= "o" (.-name key)))
-           (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
-
 (defn once-many [& fs]
   (let [done? (atom false)]
     (map (fn [f] (fn [& args]
@@ -353,6 +322,24 @@ interpreted by the REPL client. The following specials are available:
         eval-handlers (atom {})
         eval-counter (atom 0)
         cx (.Socket. un/net)
+        setup-rl (fn [rl]
+                   (edn-stream cx (fn [v done-cb]
+                                    (did-receive rl v eval-handlers done-cb)))
+                   (.on rl "line" (fn [line]
+                                    (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+                                      (special cx eval-counter rl cmd)
+                                      (send! cx eval-counter line))))
+                   (.on rl "close" (fn []
+                                     (.end cx)))
+                   (.on rl "SIGINT" (fn []
+                                      (println)
+                                      (.clearLine rl)
+                                      (._refreshLine rl)))
+                   (.on istream "keypress"
+                        (fn [chunk key]
+                          (cond
+                            (and (.-ctrl key) (= "o" (.-name key)))
+                            (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
         opts #js{:input istream
                  :output ostream
                  :path (un/join-path (un/os-homedir) ".unravel" "history")
@@ -368,8 +355,22 @@ interpreted by the REPL client. The following specials are available:
                                   (swap! eval-handlers assoc counter
                                          (fn [result]
                                            (cb* nil (clj->js [(map str result) word])))))))
-                 :next #(start* istream ostream % cx host port eval-counter eval-handlers)}]
-    (.createInterface un/readline opts)))
+                 :next setup-rl}]
+    (doto cx
+      (.connect port
+                host
+                (fn []
+                  (.setNoDelay cx true)
+                  (dbug :connect)
+                  (.write cx (read-payload))
+                  (.write cx "\n")))
+      (.on "error" (fn [err]
+                     (println "Socket error:" (pr-str err))
+                     (js/process.exit 1)))
+      (consume-until "[:unrepl/hello"
+                     (fn []
+                       (banner host port)
+                       (.createInterface un/readline opts))))))
 
 (defn fail [message]
   (println message)

@@ -36,6 +36,8 @@
 
 ## Bugs
 
+- connect before opening readline
 - restore unrepl code
+- unrepl PR
 - Completion timeout even if successful
 - read phase exceptions -> unresponsive
