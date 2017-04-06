@@ -253,40 +253,40 @@
                 p/*elide* (:put elision-store)
                 p/*attach* (:put attachment-store)]
         (m/repl
-          :prompt (fn []
-                    (ensure-unrepl)
-                    (let [q (:pre-prompt @session-state)]
-                      (loop [exs []]
-                        (if-some [f (.poll q)]
-                          (recur (try (f) exs
-                                   (catch Throwable t (conj exs t))))
-                          (when (seq exs)
-                            (throw (ex-info "Errors happened during pre-prompt." {:exs exs}))))))
-                    (write [:prompt (into {:file *file*
-                                           :line (.getLineNumber *in*)}
-                                      (map (fn [v]
-                                             (let [m (meta v)]
-                                               [(symbol (name (ns-name (:ns m))) (name (:name m))) @v])))
-                                      (:prompt-vars @session-state))]))
-          :read (fn [request-prompt request-exit]
-                  (blame :read (let [line+col [(.getLineNumber *in*) (.getColumnNumber *in*)]
-                                     r (m/repl-read request-prompt request-exit)
-                                     line+col' [(.getLineNumber *in*) (.getColumnNumber *in*)]]
-                                 (or (#{request-prompt request-exit} r)
-                                   (do
-                                     (write [:echo {:from line+col :to line+col'} (var-set eval-id (inc @eval-id))])
-                                     r)))))
-          :eval (fn [form]
-                  (let [id @eval-id]
-                    (binding [*err* (tagging-writer :err id write)
-                              *out* (tagging-writer :out id write)]
-                      (interruptible-eval form))))
-          :print (fn [x]
+         :prompt (fn []
                    (ensure-unrepl)
-                   (write [:eval x @eval-id]))
-          :caught (fn [e]
-                    (ensure-unrepl)
-                    (let [{:keys [::ex ::phase]
-                           :or {ex e phase :repl}} (ex-data e)]
-                      (write [:exception {:ex e :phase phase} @eval-id]))))))))
-
+                   (let [q (:pre-prompt @session-state)]
+                     (loop [exs []]
+                       (if-some [f (.poll q)]
+                         (recur (try (f) exs
+                                     (catch Throwable t (conj exs t))))
+                         (when (seq exs)
+                           (throw (ex-info "Errors happened during pre-prompt." {:exs exs}))))))
+                   (write [:prompt (into {:file *file*
+                                          :line (.getLineNumber *in*)}
+                                         (map (fn [v]
+                                                (let [m (meta v)]
+                                                  [(symbol (name (ns-name (:ns m))) (name (:name m))) @v])))
+                                         (:prompt-vars @session-state))]))
+         :read (fn [request-prompt request-exit]
+                 (blame :read (let [line+col [(.getLineNumber *in*) (.getColumnNumber *in*)]
+                                    r (m/repl-read request-prompt request-exit)
+                                    line+col' [(.getLineNumber *in*) (.getColumnNumber *in*)]]
+                                (or (#{request-prompt request-exit} r)
+                                    (do
+                                      (write [:echo {:from line+col :to line+col'} (var-set eval-id (inc @eval-id))])
+                                      r)))))
+         :eval (fn [form]
+                 (let [id @eval-id]
+                   (binding [*err* (tagging-writer :err id write)
+                             *out* (tagging-writer :out id write)]
+                     (interruptible-eval form))))
+         :print (fn [x]
+                  (ensure-unrepl)
+                  (write [:eval x @eval-id]))
+         :caught (fn [e]
+                   (ensure-unrepl)
+                   (let [{:keys [::ex ::phase]
+                          :or {ex e phase :repl}} (ex-data e)]
+                     (write [:exception {:ex e :phase phase} @eval-id]))))
+        (write [:fin])))))

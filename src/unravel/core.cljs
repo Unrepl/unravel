@@ -4,13 +4,9 @@
             [lumo.core]
             [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]
-            [unravel.version :as uv])
+            [unravel.version :as uv]
+            [unravel.node :as un])
   (:import [goog.string StringBuffer]))
-
-(def join-path (.-join (js/require "path")))
-(def readline (js/require "historic-readline"))
-(def net (js/require "net"))
-(def os-homedir (js/require "os-homedir"))
 
 (def debug? (atom nil))
 
@@ -275,10 +271,10 @@ interpreted by the REPL client. The following specials are available:
 
 (defn read-payload []
   (-> (->> ["print.clj" "repl.clj"]
-           (map #(join-path (or js/process.env.UNRAVEL_HOME ".")
-                            "src"
-                            "unrepl"
-                            %))
+           (map #(un/join-path (or js/process.env.UNRAVEL_HOME ".")
+                               "src"
+                               "unrepl"
+                               %))
            (mapv lumo.io/slurp))
       (conj "(unrepl.repl/start)")
       (clojure.string/join)))
@@ -348,10 +344,10 @@ interpreted by the REPL client. The following specials are available:
         ostream js/process.stdout
         eval-handlers (atom {})
         eval-counter (atom 0)
-        cx (.Socket. net)
+        cx (.Socket. un/net)
         opts #js{:input istream
                  :output ostream
-                 :path (join-path (os-homedir) ".unravel" "history")
+                 :path (un/join-path (un/os-homedir) ".unravel" "history")
                  :maxLength 1000
                  :completer (fn [line cb]
                               (let [word (or (find-word-at line (count line)) "")
@@ -365,7 +361,7 @@ interpreted by the REPL client. The following specials are available:
                                          (fn [result]
                                            (cb* nil (clj->js [(map str result) word])))))))
                  :next #(start* istream ostream % cx host port eval-counter eval-handlers)}]
-    (.createInterface readline opts)))
+    (.createInterface un/readline opts)))
 
 (defn fail [message]
   (println message)
