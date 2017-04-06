@@ -1,7 +1,20 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 
-set -euo pipefail
+import sh, re, os.path
 
-scripts/try < test/basic.clj > test/basic.is
+def check(m):
+    sh.bash("-c", "scripts/try <test/"+m+".clj >test/"+m+".is")
 
-diff -u test/basic.{ought,is}
+    if os.path.isfile("test/"+m+".ought.regex"):
+        regex = open("test/"+m+".ought.regex").read()
+        s = open("test/"+m+".is").read()
+
+        if not re.match(regex,s, re.MULTILINE):
+            print s
+            assert False, "Output does not match regex"
+    else:
+        sh.diff("-u", "test/"+m+".ought", "test/"+m+".is")
+
+for n in ["basic", "exception"]:
+    print "Testing " + n + "..."
+    check(n)
