@@ -5,18 +5,13 @@
             [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]
             [unravel.version :as uv]
-            [unravel.node :as un])
+            [unravel.node :as un]
+            [unravel.terminal :as ut]
+            [unravel.log :as ud]
+            [unravel.util :as uu])
   (:import [goog.string StringBuffer]))
 
-(def debug? (atom nil))
-
-(defn interactive? [] (.-isTTY js/process.stdin))
-(defn rich? [] (.-isTTY js/process.stdout))
-
 ;; ------
-
-(defn rstrip-one [s]
-  (clojure.string/replace s #"\n$" ""))
 
 (defn- reader-eof? [msg]
   (or
@@ -33,11 +28,6 @@
           (recur (cljs.reader/read-char reader)))
         (str sb)))))
 
-(defn unblank [s]
-  (if (clojure.string/blank? s)
-    nil
-    s))
-
 (defn safe-read-string [s]
   (let [reader (cljs.reader/push-back-reader s)
         r (try
@@ -47,7 +37,7 @@
                 ::eof
                 (throw e))))]
     (when (not= ::eof r)
-      [r (unblank (clojure.string/trim (read-chars reader)))])))
+      [r (uu/unblank (clojure.string/trim (read-chars reader)))])))
 
 (def whitespace-regex #"([\s,])(.*)")
 (def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9/.-]*)(.*)")
@@ -110,12 +100,6 @@
 
 ;; ------
 
-(defn dbug [& args]
-  (when @debug?
-    (prn (vec args))))
-
-(defn info [& args]
-  (prn (vec args)))
 
 ;; ------
 
@@ -141,34 +125,12 @@
 
 ;; ------
 
-(defn tred []
-  (when (rich?)
-    (.write js/process.stdout "\33[31m")))
-
-(defn tcyan []
-  (when (rich?)
-    (.write js/process.stdout "\33[36m")))
-
-(defn treset []
-  (when (rich?)
-    (.write js/process.stdout "\33[0m")))
-
-(defn red [f]
-  (tred)
-  (f)
-  (treset))
-
-(defn cyan [f]
-  (tcyan)
-  (f)
-  (treset))
-
 (defmulti process first)
 
 (defmethod process :prompt [[_ opts] rl]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
-      (.setPrompt rl (if (interactive?)
+      (.setPrompt rl (if (ut/interactive?)
                        (str ns "=> ")
                        "")))
     (.prompt rl true)))
@@ -177,13 +139,13 @@
   (let [f (-> @eval-handlers (get counter))]
     (if f
       (f result)
-      (cyan #(prn result)))))
+      (ut/cyan #(prn result)))))
 
 (defmethod process :bye [[_ result counter] rl eval-handlers done-cb]
   (done-cb))
 
 (defmethod process :exception [[_ e] rl]
-  (red #(println (rstrip-one (with-out-str (print-ex-form (:ex e)))))))
+  (ut/red #(println (uu/rstrip-one (with-out-str (print-ex-form (:ex e)))))))
 
 (defmethod process :out [[_ s] rl]
   (.write js/process.stdout s))
@@ -194,17 +156,17 @@
 (defmethod process :echo [command rl])
 
 (defmethod process :default [command rl]
-  (dbug :unknown-command command))
+  (ud/dbug :unknown-command command))
 
 (defn did-receive [rl command eval-handlers done-cb]
-  (dbug :receive command)
+  (ud/dbug :receive command)
   (process command rl eval-handlers done-cb))
 
 (defn edn-stream [stream on-read]
   (let [buf (StringBuffer.)
         active? (atom true)
         done-cb (fn []
-                  (dbug :done)
+                  (ud/dbug :done)
                   (reset! active? false))]
     (.on stream "readable"
          (fn []
@@ -233,7 +195,7 @@
     (.on stream "readable" on-readable)))
 
 (defn send! [cx eval-counter s]
-  (dbug :send s)
+  (ud/dbug :send s)
   (.write cx s "utf8")
   (.write cx "\n" "utf8")
   (swap! eval-counter inc))
@@ -369,7 +331,7 @@ interpreted by the REPL client. The following specials are available:
                 host
                 (fn []
                   (.setNoDelay cx true)
-                  (dbug :connect)
+                  (ud/dbug :connect)
                   (.write cx (read-payload))
                   (.write cx "\n")))
       (.on "error" (fn [err]
@@ -377,7 +339,7 @@ interpreted by the REPL client. The following specials are available:
                      (js/process.exit 1)))
       (consume-until "[:unrepl/hello"
                      (fn []
-                       (when (interactive?)
+                       (when (ut/interactive?)
                          (banner host port))
                        (.createInterface un/readline opts))))))
 
