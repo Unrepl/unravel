@@ -109,7 +109,7 @@ interpreted by the REPL client. The following specials are available:
       (conj "(unrepl.repl/start)")
       (clojure.string/join)))
 
-(defn special [cx eval-counter rl cmd]
+(defn special [{:keys [cx eval-counter rl]} cmd]
   (cond
     (or (= "help" cmd))
     (do
@@ -121,6 +121,9 @@ interpreted by the REPL client. The following specials are available:
       (uw/send! cx eval-counter (str cmd))
       (.prompt rl))))
 
+(defn send-command [ctx s]
+  (uw/send! (:cx ctx) (:eval-counter ctx) s))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -128,23 +131,29 @@ interpreted by the REPL client. The following specials are available:
         eval-counter (atom 0)
         cx (.Socket. un/net)
         setup-rl (fn [rl]
-                   (uw/edn-stream cx (fn [v done-cb]
-                                       (did-receive rl v eval-handlers done-cb)))
-                   (.on rl "line" (fn [line]
-                                    (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
-                                      (special cx eval-counter rl cmd)
-                                      (uw/send! cx eval-counter line))))
-                   (.on rl "close" (fn []
-                                     (.end cx)))
-                   (.on rl "SIGINT" (fn []
-                                      (println)
-                                      (.clearLine rl)
-                                      (._refreshLine rl)))
-                   (.on istream "keypress"
-                        (fn [chunk key]
-                          (cond
-                            (and (.-ctrl key) (= "o" (.-name key)))
-                            (do-doc cx eval-counter (.-line rl) (.-cursor rl))))))
+                   (let [ctx {:istream istream
+                              :ostream ostream
+                              :eval-handlers eval-handlers
+                              :eval-counter eval-counter
+                              :cx cx
+                              :rl rl}]
+                     (uw/edn-stream cx (fn [v done-cb]
+                                         (did-receive rl v eval-handlers done-cb)))
+                     (.on rl "line" (fn [line]
+                                      (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+                                        (special ctx cmd)
+                                        (send-command ctx line))))
+                     (.on rl "close" (fn []
+                                       (.end cx)))
+                     (.on rl "SIGINT" (fn []
+                                        (println)
+                                        (.clearLine rl)
+                                        (._refreshLine rl)))
+                     (.on istream "keypress"
+                          (fn [chunk key]
+                            (cond
+                              (and (.-ctrl key) (= "o" (.-name key)))
+                              (do-doc cx eval-counter (.-line rl) (.-cursor rl)))))))
         opts #js{:input istream
                  :output ostream
                  :path (un/join-path (un/os-homedir) ".unravel" "history")
