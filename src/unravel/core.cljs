@@ -8,70 +8,9 @@
             [unravel.node :as un]
             [unravel.terminal :as ut]
             [unravel.log :as ud]
-            [unravel.util :as uu])
+            [unravel.util :as uu]
+            [unravel.lisp :as ul])
   (:import [goog.string StringBuffer]))
-
-;; ------
-
-(defn- reader-eof? [msg]
-  (or
-   (= "EOF while reading" msg)
-   (= "EOF while reading string" msg)))
-
-(defn- read-chars
-  [reader]
-  (let [sb (StringBuffer.)]
-    (loop [c (cljs.reader/read-char reader)]
-      (if-not (nil? c)
-        (do
-          (.append sb c)
-          (recur (cljs.reader/read-char reader)))
-        (str sb)))))
-
-(defn safe-read-string [s]
-  (let [reader (cljs.reader/push-back-reader s)
-        r (try
-            (cljs.reader/read reader true ::eof false)
-            (catch js/Error e
-              (if (reader-eof? (.-message e))
-                ::eof
-                (throw e))))]
-    (when (not= ::eof r)
-      [r (uu/unblank (clojure.string/trim (read-chars reader)))])))
-
-(def whitespace-regex #"([\s,])(.*)")
-(def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9/.-]*)(.*)")
-
-(defn tokenize [s]
-  (loop [pos 0
-         s s
-         tokens []]
-    (if (clojure.string/blank? s)
-      tokens
-      (if-let [[_ match rst] (re-matches whitespace-regex s)]
-        (recur (+ pos (count match)) rst tokens)
-        (if-let [[_ word rst] (re-matches word-regex s)]
-          (recur (+ pos (count word))
-                 rst
-                 (conj tokens {:start pos
-                               :end (+ pos (count word))
-                               :type :word
-                               :value word}))
-          (recur (inc pos)
-                 (subs s 1) (conj tokens {:start pos
-                                          :end (inc pos)
-                                          :type :syntax
-                                          :value (first s)})))))))
-
-(defn find-word-at [s pos]
-  (let [tokens (->> s
-                    tokenize
-                    (filter (comp #{:word} :type)))]
-    (:value (or (some (fn [{:keys [type end] :as token}]
-                        (when (< pos end)
-                          token))
-                      tokens)
-                (last tokens)))))
 
 ;; ------
 
@@ -173,7 +112,7 @@
            (when-let [data (.read stream)]
              (when @active?
                (.append buf (.toString data "utf8"))
-               (when-let [[v rst] (safe-read-string (.toString buf))]
+               (when-let [[v rst] (ul/safe-read-string (.toString buf))]
                  (on-read v done-cb)
                  (.clear buf)
                  (when rst
@@ -228,7 +167,7 @@
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
 
 (defn do-doc [cx eval-counter line cursor]
-  (when-let [word (find-word-at line (max 0 (dec cursor)))]
+  (when-let [word (ul/find-word-at line (max 0 (dec cursor)))]
     (println)
     (send! cx eval-counter (str (cmd-doc word)))))
 
@@ -315,7 +254,7 @@ interpreted by the REPL client. The following specials are available:
                  :path (un/join-path (un/os-homedir) ".unravel" "history")
                  :maxLength 1000
                  :completer (fn [line cb]
-                              (let [word (or (find-word-at line (count line)) "")
+                              (let [word (or (ul/find-word-at line (count line)) "")
                                     timeout (fn []
                                               (println "\n*** completer timed out ***")
                                               (cb nil #js[#js[] word]))
@@ -356,7 +295,7 @@ interpreted by the REPL client. The following specials are available:
             (cond
               (= "--debug" arg)
               (do
-                (reset! debug? true)
+                (reset! ul/debug? true)
                 acc)
               (= "--version" arg)
               (print-version!)
