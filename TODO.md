@@ -14,11 +14,14 @@
 - [x] pretty-printing exceptions
 - [x] clear on C-C
 - [x] update payload
+- [x] lazy seq elisions
+- [x] restore namespace prompts
+- [ ] handle map ellisons
+- [ ] refactor to a map?
+- [ ] use separate tooling connection to avoid reprompts
 - [ ] M-x
 - [ ] add screenshot
 - [ ] add dumb terminal mode (`-d`)
-- [x] lazy seq elisions
-- [x] restore namespace prompts
 - [ ] reverse-search in history
 - [ ] bump lumo version
 - [ ] multi-line input
@@ -29,7 +32,9 @@
 - [ ] C-C twice to quit
 - [ ] print arglist automatically as you're typing a symbol
 - [ ] apropos, macroexpand, show-arglist
+- [ ] s/_refreshLine/prompt(true)/
 
-## Release todo
+## Bugs
 
-- ...
+- Completion timeout even if successful
+- read phase exceptions -> unresponsive
