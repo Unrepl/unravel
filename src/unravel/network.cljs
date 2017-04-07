@@ -7,17 +7,19 @@
 
 (defn edn-stream [stream on-read]
   (let [buf (StringBuffer.)
-        active? (atom true)
-        done-cb (fn []
-                  (ud/dbug :done)
-                  (reset! active? false))]
+        active? (atom true)]
     (.on stream "readable"
          (fn []
            (when-let [data (.read stream)]
              (when @active?
                (.append buf (.toString data "utf8"))
                (when-let [[v rst] (ul/safe-read-string (.toString buf))]
-                 (on-read v done-cb)
+                 (do
+                   (if (and (vector? v) (= :bye (first v)))
+                     (do
+                       (ud/dbug :done)
+                       (reset! active? false))
+                     (on-read v)))
                  (.clear buf)
                  (when rst
                    (.unshift stream (js/Buffer.from rst "utf8"))))))))))

@@ -35,8 +35,6 @@
       (f result)
       (ut/cyan #(prn result)))))
 
-(defmethod process :bye [[_ result counter] rl eval-handlers done-cb]
-  (done-cb))
 
 (defmethod process :exception [[_ e] rl]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
@@ -52,9 +50,9 @@
 (defmethod process :default [command rl]
   (ud/dbug :unknown-command command))
 
-(defn did-receive [{:keys [rl eval-handlers]} command done-cb]
+(defn did-receive [{:keys [rl eval-handlers]} command]
   (ud/dbug :receive command)
-  (process command rl eval-handlers done-cb))
+  (process command rl eval-handlers))
 
 ;; use qualified symbols in case code is invoked
 ;; after calling (in-ns 'invalid-ns)
@@ -126,17 +124,19 @@ interpreted by the REPL client. The following specials are available:
       (uw/send! cx eval-counter (str cmd))
       (.prompt rl))))
 
-(defn connect [conn host port full? next]
+(defn connect [conn host port full? next terminating?]
   (doto conn
     (.connect port
               host
               (fn []
-                (.setNoDelay conn true)
-                (ud/dbug :connect)
-                (.write conn (if full?
-                               (read-payload)
-                               start-cmd))
-                (.write conn "\n")))
+                (when-not @terminating?
+                  (.setNoDelay conn true)
+                  (ud/dbug :connect (.-writable conn))
+                  (.write conn (if full?
+                                 (read-payload)
+                                 start-cmd))
+                  (.write conn "\n")
+                  (ud/dbug :connect-done))))
     (.on "error" (fn [err]
                    (println "Socket error:" (pr-str err))
                    (js/process.exit 1)))
@@ -149,6 +149,7 @@ interpreted by the REPL client. The following specials are available:
         eval-counter (atom 0)
         cx (.Socket. un/net)
         tcx (.Socket. un/net)
+        terminating? (atom false)
         setup-rl (fn [rl]
                    (let [ctx {:istream istream
                               :ostream ostream
@@ -157,14 +158,16 @@ interpreted by the REPL client. The following specials are available:
                               :cx cx
                               :tcx tcx
                               :rl rl}]
-                     (uw/edn-stream cx (fn [v done-cb]
-                                         (did-receive ctx v done-cb)))
+                     (uw/edn-stream cx (partial did-receive ctx))
                      (.on rl "line" (fn [line]
                                       (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                         (special ctx cmd)
                                         (send-command ctx line))))
                      (.on rl "close" (fn []
+                                       (reset! terminating? true)
+                                       (ud/dbug :end "cx")
                                        (.end cx)
+                                       (ud/dbug :end "tx")
                                        (.end tcx)))
                      (.on rl "SIGINT" (fn []
                                         (println)
@@ -194,7 +197,9 @@ interpreted by the REPL client. The following specials are available:
     (connect cx host port true
              (fn []
                (connect tcx host port false
-                        (fn []))
+                        (fn [])
+                        terminating?)
                (when (ut/interactive?)
                  (banner host port))
-               (.createInterface un/readline opts)))))
+               (.createInterface un/readline opts))
+             terminating?)))
