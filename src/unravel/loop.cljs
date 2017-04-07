@@ -19,6 +19,9 @@
 (defn send-command [ctx s]
   (uw/send! (:conn-out ctx) (:eval-counter ctx) s))
 
+(defn send-aux-command [ctx s]
+  (uw/send! (:aux-out ctx) (:eval-counter ctx) s))
+
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
 (defmethod process [:conn :prompt] [[_ opts] origin {:keys [rl]}]
@@ -30,6 +33,12 @@
     (.prompt rl true)))
 
 (defmethod process [:conn :eval] [[_ result counter] origin {:keys [rl eval-handlers]}]
+  (let [f (-> @eval-handlers (get counter))]
+    (if f
+      (f result)
+      (ut/cyan #(prn result)))))
+
+(defmethod process [:aux :eval] [[_ result counter] origin {:keys [rl eval-handlers]}]
   (let [f (-> @eval-handlers (get counter))]
     (if f
       (f result)
@@ -137,6 +146,9 @@ interpreted by the REPL client. The following specials are available:
       (.pipe (uw/make-skip "[:unrepl/hello"))
       (.pipe (uw/make-edn-stream))))
 
+(defn action [{:keys [rl] :as ctx}]
+  (do-doc ctx (.-line rl) (.-cursor rl)))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -202,4 +214,4 @@ interpreted by the REPL client. The following specials are available:
                                                          (fn [chunk key]
                                                            (cond
                                                              (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (do-doc ctx (.-line rl) (.-cursor rl)))))))}))))))))
+                                                             (action ctx))))))}))))))))
