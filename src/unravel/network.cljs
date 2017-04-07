@@ -73,15 +73,19 @@
   stream"
   []
   (let [buf (StringBuffer.)
-        ready? (atom true)
+        ready? (atom false)
+        done? (atom false)
         transform (fn [chunk enc cb]
                     (this-as this
                       (.append buf (.toString chunk "utf8"))
                       (loop []
-                        (when @ready?
+                        (when-not @done?
                           (when-let [[v rst] (ul/safe-read-string (.toString buf))]
                             (when (and (vector? v) (= :bye (first v)))
-                              (reset! ready? false))
+                              (reset! done? true))
+                            (when-not @ready?
+                              (reset! ready? true)
+                              (.emit this "started"))
                             (.push this v)
                             (.clear buf)
                             (when rst

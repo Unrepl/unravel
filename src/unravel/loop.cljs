@@ -125,43 +125,41 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl))))
 
 (defn connect [conn host port full? next terminating?]
-  (doto conn
-    (.connect port
-              host
-              (fn []
-                (when-not @terminating?
-                  (.setNoDelay conn true)
-                  (ud/dbug :connect (.-writable conn))
-                  (.write conn (if full?
-                                 (read-payload)
-                                 start-cmd))
-                  (.write conn "\n")
-                  (ud/dbug :connect-done))))
-    (.on "error" (fn [err]
-                   (println "Socket error:" (pr-str err))
-                   (js/process.exit 1)))
-    (uw/consume-until "[:unrepl/hello" next)))
+  (-> (doto conn
+        (.connect port
+                  host
+                  (fn []
+                    (when-not @terminating?
+                      (.setNoDelay conn true)
+                      (ud/dbug :connect (.-writable conn))
+                      (.write conn (if full?
+                                     (read-payload)
+                                     start-cmd))
+                      (.write conn "\n")
+                      (ud/dbug :connect-done))))
+        (.on "error" (fn [err]
+                       (println "Socket error:" (pr-str err))
+                       (js/process.exit 1))))
+      (.pipe (uw/make-skip "[:unrepl/hello"))
+      (.pipe (uw/make-edn-stream))))
 
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
         eval-handlers (atom {})
         eval-counter (atom 0)
-        cx (.Socket. un/net)
-        tcx (.Socket. un/net)
         terminating? (atom false)
+        cx (.Socket. un/net)
+        edn-stream (connect cx host port true (fn [] (ud/info :xxx)) terminating?)
         ready (fn [rl]
                 (let [ctx {:istream istream
                            :ostream ostream
                            :eval-handlers eval-handlers
                            :eval-counter eval-counter
                            :cx cx
-                           :tcx tcx
+                           :edn-stream edn-stream
                            :rl rl}]
-                  (ud/dbug :ready)
-                  (uw/edn-stream cx (partial did-receive ctx))
-                  (ud/dbug :glog)
-
+                  (.on edn-stream "data" (partial did-receive ctx))
                   (.on rl "line" (fn [line]
                                    (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                      (special ctx cmd)
@@ -169,9 +167,7 @@ interpreted by the REPL client. The following specials are available:
                   (.on rl "close" (fn []
                                     (reset! terminating? true)
                                     (ud/dbug :end "cx")
-                                    (.end cx)
-                                    (ud/dbug :end "tx")
-                                    (.end tcx)))
+                                    (.end cx)))
                   (.on rl "SIGINT" (fn []
                                      (println)
                                      (.clearLine rl)
@@ -202,4 +198,4 @@ interpreted by the REPL client. The following specials are available:
              (when (ut/interactive?)
                (banner host port))
              (.createInterface un/readline opts))]
-    (connect cx host port true go terminating?)))
+    (.on edn-stream "started" go)))
