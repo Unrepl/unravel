@@ -14,6 +14,8 @@
             [unravel.lisp :as ul]
             [unravel.exception :as ue]))
 
+(def start-cmd "(unrepl.repl/start)")
+
 (defn send-command [ctx s]
   (uw/send! (:cx ctx) (:eval-counter ctx) s))
 
@@ -109,7 +111,7 @@ interpreted by the REPL client. The following specials are available:
                                "unrepl"
                                %))
            (mapv lumo.io/slurp))
-      (conj "(unrepl.repl/start)")
+      (conj start-cmd)
       (clojure.string/join)))
 
 (defn special [{:keys [cx eval-counter rl]} cmd]
@@ -124,18 +126,36 @@ interpreted by the REPL client. The following specials are available:
       (uw/send! cx eval-counter (str cmd))
       (.prompt rl))))
 
+(defn connect [conn host port full? next]
+  (doto conn
+    (.connect port
+              host
+              (fn []
+                (.setNoDelay conn true)
+                (ud/dbug :connect)
+                (.write conn (if full?
+                               (read-payload)
+                               start-cmd))
+                (.write conn "\n")))
+    (.on "error" (fn [err]
+                   (println "Socket error:" (pr-str err))
+                   (js/process.exit 1)))
+    (uw/consume-until "[:unrepl/hello" next)))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
         eval-handlers (atom {})
         eval-counter (atom 0)
         cx (.Socket. un/net)
+        tcx (.Socket. un/net)
         setup-rl (fn [rl]
                    (let [ctx {:istream istream
                               :ostream ostream
                               :eval-handlers eval-handlers
                               :eval-counter eval-counter
                               :cx cx
+                              :tcx tcx
                               :rl rl}]
                      (uw/edn-stream cx (fn [v done-cb]
                                          (did-receive ctx v done-cb)))
@@ -144,7 +164,8 @@ interpreted by the REPL client. The following specials are available:
                                         (special ctx cmd)
                                         (send-command ctx line))))
                      (.on rl "close" (fn []
-                                       (.end cx)))
+                                       (.end cx)
+                                       (.end tcx)))
                      (.on rl "SIGINT" (fn []
                                         (println)
                                         (.clearLine rl)
@@ -170,19 +191,10 @@ interpreted by the REPL client. The following specials are available:
                                          (fn [result]
                                            (cb* nil (clj->js [(map str result) word])))))))
                  :next setup-rl}]
-    (doto cx
-      (.connect port
-                host
-                (fn []
-                  (.setNoDelay cx true)
-                  (ud/dbug :connect)
-                  (.write cx (read-payload))
-                  (.write cx "\n")))
-      (.on "error" (fn [err]
-                     (println "Socket error:" (pr-str err))
-                     (js/process.exit 1)))
-      (uw/consume-until "[:unrepl/hello"
-                        (fn []
-                          (when (ut/interactive?)
-                            (banner host port))
-                          (.createInterface un/readline opts))))))
+    (connect cx host port true
+             (fn []
+               (connect tcx host port false
+                        (fn []))
+               (when (ut/interactive?)
+                 (banner host port))
+               (.createInterface un/readline opts)))))
