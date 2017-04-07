@@ -17,7 +17,7 @@
 (def start-cmd "(unrepl.repl/start)")
 
 (defn send-command [ctx s]
-  (uw/send! (:cx ctx) (:eval-counter ctx) s))
+  (uw/send! (:conn-out ctx) (:eval-counter ctx) s))
 
 (defmulti process first)
 
@@ -112,7 +112,7 @@ interpreted by the REPL client. The following specials are available:
       (conj start-cmd)
       (clojure.string/join)))
 
-(defn special [{:keys [cx eval-counter rl]} cmd]
+(defn special [{:keys [conn-out eval-counter rl]} cmd]
   (cond
     (or (= "help" cmd))
     (do
@@ -121,7 +121,7 @@ interpreted by the REPL client. The following specials are available:
 
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
     (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
-      (uw/send! cx eval-counter (str cmd))
+      (uw/send! conn-out eval-counter (str cmd))
       (.prompt rl))))
 
 (defn connect [conn host port full? next terminating?]
@@ -149,25 +149,25 @@ interpreted by the REPL client. The following specials are available:
         eval-handlers (atom {})
         eval-counter (atom 0)
         terminating? (atom false)
-        cx (.Socket. un/net)
-        edn-stream (connect cx host port true (fn [] (ud/info :xxx)) terminating?)
+        conn-out (.Socket. un/net)
+        conn-in (connect conn-out host port true (fn [] (ud/info :xxx)) terminating?)
         ready (fn [rl]
                 (let [ctx {:istream istream
                            :ostream ostream
                            :eval-handlers eval-handlers
                            :eval-counter eval-counter
-                           :cx cx
-                           :edn-stream edn-stream
+                           :conn-out conn-out
+                           :conn-in conn-in
                            :rl rl}]
-                  (.on edn-stream "data" (partial did-receive ctx))
+                  (.on conn-in "data" (partial did-receive ctx))
                   (.on rl "line" (fn [line]
                                    (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                      (special ctx cmd)
                                      (send-command ctx line))))
                   (.on rl "close" (fn []
                                     (reset! terminating? true)
-                                    (ud/dbug :end "cx")
-                                    (.end cx)))
+                                    (ud/dbug :end "conn-out")
+                                    (.end conn-out)))
                   (.on rl "SIGINT" (fn []
                                      (println)
                                      (.clearLine rl)
@@ -187,7 +187,7 @@ interpreted by the REPL client. The following specials are available:
                                               (println "\n*** completer timed out ***")
                                               (cb nil #js[#js[] word]))
                                     [cb* timeout*] (uu/once-many cb timeout)]
-                                (let [counter (uw/send! cx eval-counter (str (cmd-complete word)))]
+                                (let [counter (uw/send! conn-out eval-counter (str (cmd-complete word)))]
                                   (js/setTimeout timeout* 3000)
                                   (swap! eval-handlers assoc counter
                                          (fn [result]
@@ -198,4 +198,4 @@ interpreted by the REPL client. The following specials are available:
              (when (ut/interactive?)
                (banner host port))
              (.createInterface un/readline opts))]
-    (.on edn-stream "started" go)))
+    (.on conn-in "started" go)))
