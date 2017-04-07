@@ -19,9 +19,9 @@
 (defn send-command [ctx s]
   (uw/send! (:conn-out ctx) (:eval-counter ctx) s))
 
-(defmulti process first)
+(defmulti process (fn [command origin ctx] [origin (first command)]))
 
-(defmethod process :prompt [[_ opts] {:keys [rl]}]
+(defmethod process [:conn :prompt] [[_ opts] origin {:keys [rl]}]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
       (.setPrompt rl (if (ut/interactive?)
@@ -29,28 +29,25 @@
                        "")))
     (.prompt rl true)))
 
-(defmethod process :eval [[_ result counter] {:keys [rl eval-handlers]}]
+(defmethod process [:conn :eval] [[_ result counter] origin {:keys [rl eval-handlers]}]
   (let [f (-> @eval-handlers (get counter))]
     (if f
       (f result)
       (ut/cyan #(prn result)))))
 
 
-(defmethod process :exception [[_ e] {:keys [rl]}]
+(defmethod process [:conn :exception] [[_ e] origin {:keys [rl]}]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
 
-(defmethod process :out [[_ s] {:keys [rl]}]
+(defmethod process [:conn :out] [[_ s] origin {:keys [rl]}]
   (.write js/process.stdout s))
 
-(defmethod process :unrepl/hello [])
-(defmethod process :started-eval [])
-(defmethod process :echo [])
 (defmethod process :default [command]
   (ud/dbug :unknown-command command))
 
-(defn did-receive [ctx command]
+(defn did-receive [ctx command origin]
   (ud/dbug :receive command)
-  (process command ctx))
+  (process command origin ctx))
 
 ;; use qualified symbols in case code is invoked
 ;; after calling (in-ns 'invalid-ns)
@@ -186,7 +183,8 @@ interpreted by the REPL client. The following specials are available:
                                                              :aux-in aux-in
                                                              :aux-out aux-out
                                                              :rl rl}]
-                                                    (.on conn-in "data" (partial did-receive ctx))
+                                                    (.on conn-in "data" #(did-receive ctx % :conn))
+                                                    (.on aux-in "data" #(did-receive ctx % :aux))
                                                     (.on rl "line" (fn [line]
                                                                      (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                                                        (special ctx cmd)
