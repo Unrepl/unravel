@@ -5,6 +5,8 @@
             [unravel.log :as ud])
   (:import [goog.string StringBuffer]))
 
+(def Transform (.-Transform (js/require "stream")))
+
 (defn edn-stream [stream on-read]
   (let [buf (StringBuffer.)
         active? (atom true)]
@@ -44,3 +46,56 @@
   (.write cx s "utf8")
   (.write cx "\n" "utf8")
   (swap! eval-counter inc))
+
+
+(defn make-skip
+  "Returns a transformer that skips the stream until sentinel. Pipes sentinel
+  and all following bytes to writable stream"
+  [sentinel]
+  (let [buf (StringBuffer.)
+        ready? (atom false)
+        transform (fn [chunk enc cb]
+                    (this-as this
+                      (if @ready?
+                        (cb nil chunk)
+                        (do
+                          (.append buf (.toString chunk "utf8"))
+                          (let [s (.toString buf)
+                                idx (.indexOf s sentinel)]
+                            (when (not= -1 idx)
+                              (reset! ready? true)
+                              (.push this (subs s idx)))
+                            (cb))))))]
+    (Transform. #js {:transform transform})))
+
+(defn make-edn-stream
+  "Returns a transformer that reads EDN forms. Writes CLJS values a readable
+  stream"
+  []
+  (let [buf (StringBuffer.)
+        ready? (atom true)
+        transform (fn [chunk enc cb]
+                    (this-as this
+                      (.append buf (.toString chunk "utf8"))
+                      (loop []
+                        (when @ready?
+                          (when-let [[v rst] (ul/safe-read-string (.toString buf))]
+                            (when (and (vector? v) (= :bye (first v)))
+                              (reset! ready? false))
+                            (.push this v)
+                            (.clear buf)
+                            (when rst
+                              (do
+                                (.append buf rst)
+                                (recur))))))
+                      (cb)))]
+    (Transform. #js {:readableObjectMode true
+                     :transform transform})))
+
+(defn make-pr-str-stream
+  []
+  (let [transform (fn [v enc cb]
+                    (this-as this
+                      (cb nil (prn-str v))))]
+    (Transform. #js {:writableObjectMode true
+                     :transform transform})))
