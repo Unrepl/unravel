@@ -38,12 +38,9 @@
       (f result)
       (ut/cyan #(prn result)))))
 
-(defmethod process [:aux :eval] [[_ result counter] origin {:keys [rl eval-handlers]}]
-  (let [f (-> @eval-handlers (get counter))]
-    (if f
-      (f result)
-      (ut/cyan #(prn result)))))
-
+(defmethod process [:aux :eval] [[_ [eval-id v] counter] origin {:keys [rl callbacks]}]
+  (let [f (-> @callbacks (get eval-id))]
+    (when f (f v))))
 
 (defmethod process [:conn :exception] [[_ e] origin {:keys [rl]}]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
@@ -146,8 +143,17 @@ interpreted by the REPL client. The following specials are available:
       (.pipe (uw/make-skip "[:unrepl/hello"))
       (.pipe (uw/make-edn-stream))))
 
-(defn action [{:keys [rl] :as ctx}]
-  (do-doc ctx (.-line rl) (.-cursor rl)))
+(defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
+  (let [eval-id (str (gensym))]
+    (swap! callbacks
+           assoc
+           eval-id
+           cb)
+    (send-aux-command ctx (pr-str [eval-id form]))))
+
+(defn action [ctx]
+  (call-remote ctx "hihi" #(ud/info :haha %))
+  #_(do-doc ctx (.-line rl) (.-cursor rl)))
 
 (defn start [host port]
   (let [istream js/process.stdin
@@ -190,6 +196,7 @@ interpreted by the REPL client. The following specials are available:
                                                              :ostream ostream
                                                              :eval-handlers eval-handlers
                                                              :eval-counter eval-counter
+                                                             :callbacks (atom {})
                                                              :conn-in conn-in
                                                              :conn-out conn-out
                                                              :aux-in aux-in
