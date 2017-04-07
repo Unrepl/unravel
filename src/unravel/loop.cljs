@@ -124,19 +124,18 @@ interpreted by the REPL client. The following specials are available:
       (uw/send! conn-out eval-counter (str cmd))
       (.prompt rl))))
 
-(defn connect [conn host port full? next terminating?]
+(defn connect [conn host port full? terminating?]
   (-> (doto conn
         (.connect port
                   host
                   (fn []
                     (when-not @terminating?
                       (.setNoDelay conn true)
-                      (ud/dbug :connect (.-writable conn))
+                      (ud/dbug :connect full?)
                       (.write conn (if full?
                                      (read-payload)
                                      start-cmd))
-                      (.write conn "\n")
-                      (ud/dbug :connect-done))))
+                      (.write conn "\n"))))
         (.on "error" (fn [err]
                        (println "Socket error:" (pr-str err))
                        (js/process.exit 1))))
@@ -150,52 +149,60 @@ interpreted by the REPL client. The following specials are available:
         eval-counter (atom 0)
         terminating? (atom false)
         conn-out (.Socket. un/net)
-        conn-in (connect conn-out host port true (fn [] (ud/info :xxx)) terminating?)
-        ready (fn [rl]
-                (let [ctx {:istream istream
-                           :ostream ostream
-                           :eval-handlers eval-handlers
-                           :eval-counter eval-counter
-                           :conn-out conn-out
-                           :conn-in conn-in
-                           :rl rl}]
-                  (.on conn-in "data" (partial did-receive ctx))
-                  (.on rl "line" (fn [line]
-                                   (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
-                                     (special ctx cmd)
-                                     (send-command ctx line))))
-                  (.on rl "close" (fn []
-                                    (reset! terminating? true)
-                                    (ud/dbug :end "conn-out")
-                                    (.end conn-out)))
-                  (.on rl "SIGINT" (fn []
-                                     (println)
-                                     (.clearLine rl)
-                                     (.prompt rl false)))
-                  (.on istream "keypress"
-                       (fn [chunk key]
-                         (cond
-                           (and (.-ctrl key) (= "o" (.-name key)))
-                           (do-doc ctx (.-line rl) (.-cursor rl)))))))
-        opts #js{:input istream
-                 :output ostream
-                 :path (un/join-path (un/os-homedir) ".unravel" "history")
-                 :maxLength 1000
-                 :completer (fn [line cb]
-                              (let [word (or (ul/find-word-at line (count line)) "")
-                                    timeout (fn []
-                                              (println "\n*** completer timed out ***")
-                                              (cb nil #js[#js[] word]))
-                                    [cb* timeout*] (uu/once-many cb timeout)]
-                                (let [counter (uw/send! conn-out eval-counter (str (cmd-complete word)))]
-                                  (js/setTimeout timeout* 3000)
-                                  (swap! eval-handlers assoc counter
-                                         (fn [result]
-                                           (cb* nil (clj->js [(map str result) word])))))))
-                 :next ready}
-        go (fn []
-             (ud/dbug :pineapple)
-             (when (ut/interactive?)
-               (banner host port))
-             (.createInterface un/readline opts))]
-    (.on conn-in "started" go)))
+        conn-in (connect conn-out host port true terminating?)]
+    (.on conn-in
+         "started"
+         (fn []
+           (let [aux-out (.Socket. un/net)
+                 aux-in (connect aux-out host port false terminating?)]
+             (ud/dbug :conn)
+             (.on aux-in
+                  "started"
+                  (fn []
+                    (ud/dbug :go)
+                    (when (ut/interactive?)
+                      (banner host port))
+                    (.createInterface un/readline
+                                      #js{:input istream
+                                          :output ostream
+                                          :path (un/join-path (un/os-homedir) ".unravel" "history")
+                                          :maxLength 1000
+                                          :completer (fn [line cb]
+                                                       (let [word (or (ul/find-word-at line (count line)) "")
+                                                             timeout (fn []
+                                                                       (println "\n*** completer timed out ***")
+                                                                       (cb nil #js[#js[] word]))
+                                                             [cb* timeout*] (uu/once-many cb timeout)]
+                                                         (let [counter (uw/send! conn-out eval-counter (str (cmd-complete word)))]
+                                                           (js/setTimeout timeout* 3000)
+                                                           (swap! eval-handlers assoc counter
+                                                                  (fn [result]
+                                                                    (cb* nil (clj->js [(map str result) word])))))))
+                                          :next (fn [rl]
+                                                  (let [ctx {:istream istream
+                                                             :ostream ostream
+                                                             :eval-handlers eval-handlers
+                                                             :eval-counter eval-counter
+                                                             :conn-in conn-in
+                                                             :conn-out conn-out
+                                                             :aux-in aux-in
+                                                             :aux-out aux-out
+                                                             :rl rl}]
+                                                    (.on conn-in "data" (partial did-receive ctx))
+                                                    (.on rl "line" (fn [line]
+                                                                     (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+                                                                       (special ctx cmd)
+                                                                       (send-command ctx line))))
+                                                    (.on rl "close" (fn []
+                                                                      (reset! terminating? true)
+                                                                      (ud/dbug :end "conn-out")
+                                                                      (.end conn-out)))
+                                                    (.on rl "SIGINT" (fn []
+                                                                       (println)
+                                                                       (.clearLine rl)
+                                                                       (.prompt rl false)))
+                                                    (.on istream "keypress"
+                                                         (fn [chunk key]
+                                                           (cond
+                                                             (and (.-ctrl key) (= "o" (.-name key)))
+                                                             (do-doc ctx (.-line rl) (.-cursor rl)))))))}))))))))
