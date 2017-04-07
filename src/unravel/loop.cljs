@@ -196,7 +196,8 @@ interpreted by the REPL client. The following specials are available:
                                                     (.on rl "close" (fn []
                                                                       (reset! terminating? true)
                                                                       (ud/dbug :end "conn-out")
-                                                                      (.end conn-out)))
+                                                                      (.end conn-out)
+                                                                      (.end aux-out)))
                                                     (.on rl "SIGINT" (fn []
                                                                        (println)
                                                                        (.clearLine rl)
