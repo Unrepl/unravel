@@ -21,7 +21,7 @@
 
 (defmulti process first)
 
-(defmethod process :prompt [[_ opts] rl]
+(defmethod process :prompt [[_ opts] {:keys [rl]}]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
       (.setPrompt rl (if (ut/interactive?)
@@ -29,30 +29,28 @@
                        "")))
     (.prompt rl true)))
 
-(defmethod process :eval [[_ result counter] rl eval-handlers]
+(defmethod process :eval [[_ result counter] {:keys [rl eval-handlers]}]
   (let [f (-> @eval-handlers (get counter))]
     (if f
       (f result)
       (ut/cyan #(prn result)))))
 
 
-(defmethod process :exception [[_ e] rl]
+(defmethod process :exception [[_ e] {:keys [rl]}]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
 
-(defmethod process :out [[_ s] rl]
+(defmethod process :out [[_ s] {:keys [rl]}]
   (.write js/process.stdout s))
 
-(defmethod process :unrepl/hello [command rl])
-
-(defmethod process :started-eval [command rl])
-(defmethod process :echo [command rl])
-
-(defmethod process :default [command rl]
+(defmethod process :unrepl/hello [])
+(defmethod process :started-eval [])
+(defmethod process :echo [])
+(defmethod process :default [command]
   (ud/dbug :unknown-command command))
 
-(defn did-receive [{:keys [rl eval-handlers]} command]
+(defn did-receive [ctx command]
   (ud/dbug :receive command)
-  (process command rl eval-handlers))
+  (process command ctx))
 
 ;; use qualified symbols in case code is invoked
 ;; after calling (in-ns 'invalid-ns)
