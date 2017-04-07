@@ -22,10 +22,7 @@
   (let [reader (cljs.reader/push-back-reader s)
         r (try
             (cljs.reader/read reader true ::eof false)
-            (catch js/Error e
-              (if (reader-eof? (.-message e))
-                ::eof
-                (throw e))))]
+            (catch js/Error e ::eof))]
     (when (not= ::eof r)
       [r (uu/unblank (clojure.string/trim (read-chars reader)))])))
 
