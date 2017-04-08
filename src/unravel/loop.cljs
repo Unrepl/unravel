@@ -155,28 +155,35 @@ interpreted by the REPL client. The following specials are available:
 (defn plausible-symbol? [s]
   (re-matches #"^[*+?!_?a-zA-Z-.]+(/[*+?!_?a-zA-Z-.]+)?$" s))
 
-(defn action [{:keys [rl ostream] :as ctx}]
+(defn squawk [rl & xs]
+  (println)
+  (apply prn xs)
+  (.prompt rl true))
+
+(defn action [{:keys [rl ostream state] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
     (when (plausible-symbol? word)
-      (call-remote ctx
-                   (list '->> (list 'clojure.repl/doc (symbol word))
-                         'with-out-str
-                         '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                         'rest)
-                   (fn [[result more]]
-                     (when result
-                       (let [pos (._getCursorPos rl)
-                             lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
-                                                                 more
-                                                                 (str "...")))]
-                         (println)
-                         (doseq [line lines]
-                           (.clearLine ostream)
-                           (println line))
-                         (.moveCursor (js/require "readline")
-                                      (.-output rl)
-                                      (.-cols pos)
-                                      (- (+ (count lines) 1))))))))))
+      (when-not (= word (:word @state))
+        (swap! state assoc :word word)
+        (call-remote ctx
+                     (list '->> (list 'clojure.repl/doc (symbol word))
+                           'with-out-str
+                           '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                           'rest)
+                     (fn [[result more]]
+                       (when result
+                         (let [pos (._getCursorPos rl)
+                               lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                                                   more
+                                                                   (str "...")))]
+                           (println)
+                           (doseq [line lines]
+                             (.clearLine ostream)
+                             (println line))
+                           (.moveCursor (js/require "readline")
+                                        (.-output rl)
+                                        (.-cols pos)
+                                        (- (+ (count lines) 1)))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -228,7 +235,8 @@ interpreted by the REPL client. The following specials are available:
                                                              :conn-out conn-out
                                                              :aux-in aux-in
                                                              :aux-out aux-out
-                                                             :rl rl}]
+                                                             :rl rl
+                                                             :state (atom {})}]
                                                     (reset! completer-fn (partial complete ctx))
                                                     (.on conn-in "data" #(did-receive ctx % :conn))
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
