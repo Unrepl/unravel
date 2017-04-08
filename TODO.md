@@ -38,6 +38,7 @@
 - [ ] method autocompletion
 - [ ] signal incomplete line/unbalanced parentheses
 - [ ] don't act on words in quotes
+- [ ] copy 'n pasting
 
 ## Bugs
 

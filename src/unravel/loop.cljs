@@ -152,7 +152,7 @@ interpreted by the REPL client. The following specials are available:
     (send-aux-command ctx (pr-str [eval-id form]))))
 
 (defn plausible-symbol? [s]
-  (re-matches #"^[*+?!_'?a-zA-Z-.]*(/[*+?!_'?a-zA-Z-.]+)?$" s))
+  (re-matches #"^[*+?!_?a-zA-Z-.]+(/[*+?!_?a-zA-Z-.]+)?$" s))
 
 (defn action [{:keys [rl ostream] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
