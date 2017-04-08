@@ -85,13 +85,13 @@
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
-  (println "Type ^O for docs of symbol under cursor, ^D to quit")
+  (println "Type ^O for full docs of symbol under cursor, ^D to quit")
   (println "Enter #__help for help")
   (println))
 
 (defn help []
   (println)
-  (println "Type ^O for docs of symbol under cursor, ^D to quit.")
+  (println "Type ^O for full docs of symbol under cursor, ^D to quit.")
   (println "Lines starting with `#__` are treated as special commands and
 interpreted by the REPL client. The following specials are available:
 

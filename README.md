@@ -83,6 +83,11 @@ unravel localhost 50505
 
 ## Changes
 
+### 0.2.0
+
+- Print symbol docs live
+- Use separate tooling connection for tab completion
+
 ### 0.1.6
 
 - Fix installation via NPM
