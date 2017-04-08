@@ -14,7 +14,7 @@
             [unravel.lisp :as ul]
             [unravel.exception :as ue]))
 
-(def start-cmd "(unrepl.repl/start)")
+(def start-cmd "(do (in-ns 'user) (unrepl.repl/start))")
 
 (defn send-command [ctx s]
   (uw/send! (:conn-out ctx) s))
@@ -205,7 +205,8 @@ interpreted by the REPL client. The following specials are available:
     (call-remote ctx
                  (cmd-complete word)
                  (fn [completions]
-                   (cb* nil (clj->js [(map str completions) word]))))))
+                   (cb* nil (clj->js [(map str completions) word]))
+                   (show-doc ctx false)))))
 
 (defn start [host port]
   (let [istream js/process.stdin

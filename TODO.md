@@ -21,6 +21,7 @@
 - [ ] automatically check spec?
 - [ ] why doesn't readline insert only completion on tab?
 - [ ] use uuids instead of gensyms
+- [ ] nicer printing for vars
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [x] release bundle

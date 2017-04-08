@@ -90,6 +90,7 @@ unravel localhost 50505
 
 - Live docs for vars and namespaces
 - Use separate tooling connection for tab completion and docs
+- Start in "user" namespace
 
 ### 0.1.6
 
