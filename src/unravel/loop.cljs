@@ -233,7 +233,8 @@ interpreted by the REPL client. The following specials are available:
                                                     (.on conn-in "data" #(did-receive ctx % :conn))
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
                                                     (.on rl "line" (fn [line]
-                                                                     (.clearLine ostream)
+                                                                     (when (ut/rich?)
+                                                                       (.clearLine ostream))
                                                                      (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                                                        (special ctx cmd)
                                                                        (send-command ctx line))))
@@ -244,7 +245,8 @@ interpreted by the REPL client. The following specials are available:
                                                                       (.end aux-out)))
                                                     (.on rl "SIGINT" (fn []
                                                                        (println)
-                                                                       (.clearLine rl)
+                                                                       (when (ut/rich?)
+                                                                         (.clearLine rl))
                                                                        (.prompt rl false)))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
