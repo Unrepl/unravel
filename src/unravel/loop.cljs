@@ -163,7 +163,7 @@ interpreted by the REPL client. The following specials are available:
 (defn cut [s n]
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
 
-(defn action [{:keys [rl ostream state] :as ctx}]
+(defn on-keypress [{:keys [rl ostream state] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
     (when (plausible-symbol? word)
       (when-not (= word (:word @state))
@@ -245,7 +245,8 @@ interpreted by the REPL client. The following specials are available:
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
                                                     (.on rl "line" (fn [line]
                                                                      (when (ut/rich?)
-                                                                       (.clearLine ostream))
+                                                                       (.clearLine ostream)
+                                                                       (.clearScreenDown ostream))
                                                                      (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                                                        (special ctx cmd)
                                                                        (send-command ctx line))))
@@ -261,4 +262,4 @@ interpreted by the REPL client. The following specials are available:
                                                                        (.prompt rl false)))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
-                                                           (action ctx)))))}))))))))
+                                                           (on-keypress ctx)))))}))))))))
