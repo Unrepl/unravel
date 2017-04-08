@@ -24,3 +24,9 @@
   (tcyan)
   (f)
   (treset))
+
+#_(defn color [f]
+    (when (rich?)
+      (.write js/process.stdout "\33[35m"))
+    (f)
+    (treset))

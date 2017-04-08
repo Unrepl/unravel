@@ -27,7 +27,7 @@
       [r (uu/unblank (clojure.string/trim (read-chars reader)))])))
 
 (def whitespace-regex #"([\s,])(.*)")
-(def word-regex #"([*+!_'?a-zA-Z-][*+!_'?a-zA-Z0-9/.-]*)(.*)")
+(def word-regex #"([*+?!_'?a-zA-Z-][*+?!_'?a-zA-Z0-9/.-]*)(.*)")
 
 (defn tokenize [s]
   (loop [pos 0

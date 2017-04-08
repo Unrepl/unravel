@@ -33,10 +33,13 @@
 - [ ] print arglist automatically as you're typing a symbol
 - [ ] apropos, macroexpand, show-arglist
 - [ ] s/_refreshLine/prompt(true)/
+- [ ] emojis?
+- [ ] 256 colors?
 
 ## Bugs
 
 - connect before opening readline
+- fix completion
 - restore unrepl code
 - unrepl PR
 - Completion timeout even if successful

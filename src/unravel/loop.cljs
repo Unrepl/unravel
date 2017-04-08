@@ -39,8 +39,8 @@
       (ut/cyan #(prn result)))))
 
 (defmethod process [:aux :eval] [[_ [eval-id v] counter] origin {:keys [rl callbacks]}]
-  (let [f (-> @callbacks (get eval-id))]
-    (when f (f v))))
+  (when-let [f (-> @callbacks (get eval-id))]
+    (f v)))
 
 (defmethod process [:conn :exception] [[_ e] origin {:keys [rl]}]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
@@ -151,17 +151,28 @@ interpreted by the REPL client. The following specials are available:
            cb)
     (send-aux-command ctx (pr-str [eval-id form]))))
 
-(defn action [{:keys [rl] :as ctx}]
+(defn plausible-symbol? [s]
+  (re-matches #"^[\w.]*(/[\w.]+)?$" s))
+
+(defn action [{:keys [rl ostream] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
-    (call-remote ctx
-                 (list 'get (list 'clojure.string/split-lines
-                                  (list 'with-out-str (list 'clojure.repl/doc
-                                                            (symbol word)))) 2)
-                 (fn [result]
-                   (let [pos (._getCursorPos rl)]
-                     (println)
-                     (println result)
-                     (.moveCursor (js/require "readline") (.-output rl) (.-cols pos) -2))))))
+    (when (plausible-symbol? word)
+      (call-remote ctx
+                   (list '->> (list 'clojure.repl/doc (symbol word))
+                         'with-out-str
+                         ;; '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?).*"))
+                         ;; 'second
+                         )
+                   (fn [result]
+                     (when result
+                       (let [pos (._getCursorPos rl)
+                             newline-count (->> result (re-seq #"\n") count)]
+                         (println)
+                         (.write ostream (str result))
+                         (.moveCursor (js/require "readline")
+                                      (.-output rl)
+                                      (.-cols pos)
+                                      (- (+ newline-count 1))))))))))
 
 (defn start [host port]
   (let [istream js/process.stdin
@@ -213,6 +224,7 @@ interpreted by the REPL client. The following specials are available:
                                                     (.on conn-in "data" #(did-receive ctx % :conn))
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
                                                     (.on rl "line" (fn [line]
+                                                                     (.clearLine ostream)
                                                                      (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
                                                                        (special ctx cmd)
                                                                        (send-command ctx line))))
@@ -227,6 +239,4 @@ interpreted by the REPL client. The following specials are available:
                                                                        (.prompt rl false)))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
-                                                           (cond
-                                                             (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (action ctx))))))}))))))))
+                                                           (action ctx)))))}))))))))
