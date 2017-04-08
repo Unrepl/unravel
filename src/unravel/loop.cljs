@@ -165,14 +165,17 @@ interpreted by the REPL client. The following specials are available:
                    (fn [[result more]]
                      (when result
                        (let [pos (._getCursorPos rl)
-                             txt (clojure.string/trimr result)
-                             newline-count (->> txt (re-seq #"\n") count)]
+                             lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                                                 more
+                                                                 (str "...")))]
                          (println)
-                         (.write ostream (str txt (when more "...") "\n"))
+                         (doseq [line lines]
+                           (.clearLine ostream)
+                           (println line))
                          (.moveCursor (js/require "readline")
                                       (.-output rl)
                                       (.-cols pos)
-                                      (- (+ newline-count 2))))))))))
+                                      (- (+ (count lines) 1))))))))))
 
 (defn start [host port]
   (let [istream js/process.stdin

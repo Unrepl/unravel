@@ -35,10 +35,15 @@
 - [ ] s/_refreshLine/prompt(true)/
 - [ ] emojis?
 - [ ] 256 colors?
+- [ ] method autocompletion
+- [ ] signal incomplete line/unbalanced parentheses
+- [ ] don't act on words in quotes
 
 ## Bugs
 
 - clear doc lines
+- what to do on ^O?
+- update docs
 - connect before opening readline
 - fix completion
 - restore unrepl code
