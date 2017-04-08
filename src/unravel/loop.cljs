@@ -163,30 +163,41 @@ interpreted by the REPL client. The following specials are available:
 (defn cut [s n]
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
 
-(defn on-keypress [{:keys [rl ostream state] :as ctx}]
+(defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
     (when (plausible-symbol? word)
-      (when-not (= word (:word @state))
+      (when (or (not= word (:word @state)) full?)
         (swap! state assoc :word word)
         (call-remote ctx
-                     (list '->> (list 'clojure.repl/doc (symbol word))
-                           'with-out-str
-                           '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                           'rest)
-                     (fn [[result more]]
-                       (when result
-                         (let [pos (._getCursorPos rl)
-                               lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
-                                                                   more
-                                                                   (str "...")))]
+                     (if full?
+                       (list '->>
+                             (list 'clojure.repl/doc (symbol word))
+                             'with-out-str)
+                       (list '->> (list 'clojure.repl/doc (symbol word))
+                             'with-out-str
+                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                             'rest))
+                     (fn [r]
+                       (if full?
+                         (do
                            (println)
-                           (doseq [line lines]
-                             (.clearLine ostream)
-                             (println (cut line 70)))
-                           (.moveCursor (js/require "readline")
-                                        (.-output rl)
-                                        (.-cols pos)
-                                        (- (+ (count lines) 1)))))))))))
+                           (.clearScreenDown ostream)
+                           (println r)
+                           (.prompt rl true))
+                         (let [[result more] r]
+                           (when result
+                             (let [pos (._getCursorPos rl)
+                                   lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                                                       more
+                                                                       (str "...")))]
+                               (println)
+                               (doseq [line lines]
+                                 (.clearLine ostream)
+                                 (println (cut line 70)))
+                               (.moveCursor (js/require "readline")
+                                            (.-output rl)
+                                            (.-cols pos)
+                                            (- (+ (count lines) 1)))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -262,4 +273,8 @@ interpreted by the REPL client. The following specials are available:
                                                                        (.prompt rl false)))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
-                                                           (on-keypress ctx)))))}))))))))
+                                                           (cond
+                                                             (and (.-ctrl key) (= "o" (.-name key)))
+                                                             (show-doc ctx true)
+                                                             :else
+                                                             (show-doc ctx false))))))}))))))))
