@@ -2,3 +2,6 @@ npm-debug.log
 node_modules
 .nrepl-history
 .nrepl-port
+test/*.is
+test/*.err
+**/*.pyc

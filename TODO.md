@@ -1,5 +1,26 @@
 ## Features
 
+- [ ] handle map ellisons
+- [ ] M-x
+- [ ] add screenshot
+- [ ] add dumb terminal mode (`-d`)
+- [ ] reverse-search in history
+- [ ] bump lumo version
+- [ ] multi-line input
+- [ ] interrupt eval on Control-C
+- [ ] highlighting parens (a la lumo)
+- [ ] gensym unrepl namespace
+- [ ] C-C twice to quit
+- [ ] apropos, macroexpand, show-arglist
+- [ ] emojis?
+- [ ] 256 colors?
+- [ ] method autocompletion
+- [ ] signal incomplete line/unbalanced parentheses
+- [ ] don't act on words in quotes
+- [ ] copy 'n pasting
+- [ ] automatically check spec?
+- [ ] why doesn't readline insert only completion on tab?
+- [ ] use uuids instead of gensyms
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [x] release bundle
@@ -14,22 +35,14 @@
 - [x] pretty-printing exceptions
 - [x] clear on C-C
 - [x] update payload
-- [ ] M-x
-- [ ] add screenshot
-- [ ] add dumb terminal mode (`-d`)
 - [x] lazy seq elisions
 - [x] restore namespace prompts
-- [ ] reverse-search in history
-- [ ] bump lumo version
-- [ ] multi-line input
-- [ ] interrupt eval on Control-C
-- [ ] highlighting parens (a la lumo)
-- [ ] tests
-- [ ] gensym unrepl namespace
-- [ ] C-C twice to quit
-- [ ] print arglist automatically as you're typing a symbol
-- [ ] apropos, macroexpand, show-arglist
+- [x] refactor to a map?
+- [x] use separate tooling connection to avoid reprompts
+- [x] tests
+- [x] print arglist automatically as you're typing a symbol
+- [x] s/_refreshLine/prompt(true)/
 
-## Release todo
+## Bugs
 
-- ...
+- update docs
