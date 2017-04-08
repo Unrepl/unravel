@@ -153,12 +153,15 @@ interpreted by the REPL client. The following specials are available:
     (send-aux-command ctx cmd)))
 
 (defn plausible-symbol? [s]
-  (re-matches #"^[*+?!_?a-zA-Z-.]+(/[*+?!_?a-zA-Z-.]+)?$" s))
+  (re-matches #"^[*+=?!_?a-zA-Z-.]+(/[*+=?!_?a-zA-Z-.]+)?$" s))
 
 (defn squawk [rl & xs]
   (println)
   (apply prn xs)
   (.prompt rl true))
+
+(defn cut [s n]
+  (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
 
 (defn action [{:keys [rl ostream state] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -179,7 +182,7 @@ interpreted by the REPL client. The following specials are available:
                            (println)
                            (doseq [line lines]
                              (.clearLine ostream)
-                             (println line))
+                             (println (cut line 70)))
                            (.moveCursor (js/require "readline")
                                         (.-output rl)
                                         (.-cols pos)
