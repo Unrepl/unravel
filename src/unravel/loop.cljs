@@ -144,12 +144,13 @@ interpreted by the REPL client. The following specials are available:
       (.pipe (uw/make-edn-stream))))
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
-  (let [eval-id (str (gensym))]
+  (let [eval-id (str (gensym))
+        cmd (pr-str [eval-id form])]
     (swap! callbacks
            assoc
            eval-id
            cb)
-    (send-aux-command ctx (pr-str [eval-id form]))))
+    (send-aux-command ctx cmd)))
 
 (defn plausible-symbol? [s]
   (re-matches #"^[*+?!_?a-zA-Z-.]+(/[*+?!_?a-zA-Z-.]+)?$" s))
@@ -177,6 +178,17 @@ interpreted by the REPL client. The following specials are available:
                                       (.-cols pos)
                                       (- (+ (count lines) 1))))))))))
 
+(defn complete [ctx line cb]
+  (let [word (or (ul/find-word-at line (count line)) "")
+        timeout (fn []
+                  (println "\n*** completer timed out ***")
+                  (cb nil #js[#js[] word]))
+        [cb* timeout*] (uu/once-many cb timeout)]
+    (call-remote ctx
+                 (cmd-complete word)
+                 (fn [completions]
+                   (cb* nil (clj->js [(map str completions) word]))))))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -189,7 +201,8 @@ interpreted by the REPL client. The following specials are available:
          "started"
          (fn []
            (let [aux-out (.Socket. un/net)
-                 aux-in (connect aux-out host port false terminating?)]
+                 aux-in (connect aux-out host port false terminating?)
+                 completer-fn (atom nil)]
              (ud/dbug :conn)
              (.on aux-in
                   "started"
@@ -203,16 +216,8 @@ interpreted by the REPL client. The following specials are available:
                                           :path (un/join-path (un/os-homedir) ".unravel" "history")
                                           :maxLength 1000
                                           :completer (fn [line cb]
-                                                       (let [word (or (ul/find-word-at line (count line)) "")
-                                                             timeout (fn []
-                                                                       (println "\n*** completer timed out ***")
-                                                                       (cb nil #js[#js[] word]))
-                                                             [cb* timeout*] (uu/once-many cb timeout)]
-                                                         (let [counter (uw/send! conn-out eval-counter (str (cmd-complete word)))]
-                                                           (js/setTimeout timeout* 3000)
-                                                           (swap! eval-handlers assoc counter
-                                                                  (fn [result]
-                                                                    (cb* nil (clj->js [(map str result) word])))))))
+                                                       (when-let [f @completer-fn]
+                                                         (f line cb)))
                                           :next (fn [rl]
                                                   (let [ctx {:istream istream
                                                              :ostream ostream
@@ -224,6 +229,7 @@ interpreted by the REPL client. The following specials are available:
                                                              :aux-in aux-in
                                                              :aux-out aux-out
                                                              :rl rl}]
+                                                    (reset! completer-fn (partial complete ctx))
                                                     (.on conn-in "data" #(did-receive ctx % :conn))
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
                                                     (.on rl "line" (fn [line]

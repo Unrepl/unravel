@@ -39,11 +39,16 @@
 - [ ] signal incomplete line/unbalanced parentheses
 - [ ] don't act on words in quotes
 - [ ] copy 'n pasting
+- [ ] automatically check spec?
 
 ## Bugs
 
-- clear doc lines
+- long lines (e.g. "defn"): cut off at 70 cols
+- uuids instead of gensyms
+- remove eval-counter eval-handlers
 - what to do on ^O?
+- only get new docs when symbol changes
+- debounce?
 - update docs
 - connect before opening readline
 - fix completion
