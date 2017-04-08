@@ -40,19 +40,9 @@
 - [ ] don't act on words in quotes
 - [ ] copy 'n pasting
 - [ ] automatically check spec?
+- [ ] why doesn't readline insert only completion on tab?
+- [ ] use uuids instead of gensyms
 
 ## Bugs
 
-- long lines (e.g. "defn"): cut off at 70 cols
-- uuids instead of gensyms
-- remove eval-counter eval-handlers
-- what to do on ^O?
-- only get new docs when symbol changes
-- debounce?
 - update docs
-- connect before opening readline
-- fix completion
-- restore unrepl code
-- unrepl PR
-- Completion timeout even if successful
-- read phase exceptions -> unresponsive

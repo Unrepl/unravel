@@ -17,10 +17,10 @@
 (def start-cmd "(unrepl.repl/start)")
 
 (defn send-command [ctx s]
-  (uw/send! (:conn-out ctx) (:eval-counter ctx) s))
+  (uw/send! (:conn-out ctx) s))
 
 (defn send-aux-command [ctx s]
-  (uw/send! (:aux-out ctx) (:eval-counter ctx) s))
+  (uw/send! (:aux-out ctx) s))
 
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
@@ -32,11 +32,8 @@
                        "")))
     (.prompt rl true)))
 
-(defmethod process [:conn :eval] [[_ result counter] origin {:keys [rl eval-handlers]}]
-  (let [f (-> @eval-handlers (get counter))]
-    (if f
-      (f result)
-      (ut/cyan #(prn result)))))
+(defmethod process [:conn :eval] [[_ result counter] origin {:keys [rl]}]
+  (ut/cyan #(prn result)))
 
 (defmethod process [:aux :eval] [[_ [eval-id v] counter] origin {:keys [rl callbacks]}]
   (when-let [f (-> @callbacks (get eval-id))]
@@ -113,7 +110,7 @@ interpreted by the REPL client. The following specials are available:
       (conj start-cmd)
       (clojure.string/join)))
 
-(defn special [{:keys [conn-out eval-counter rl]} cmd]
+(defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
     (or (= "help" cmd))
     (do
@@ -122,7 +119,7 @@ interpreted by the REPL client. The following specials are available:
 
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
     (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
-      (uw/send! conn-out eval-counter (str cmd))
+      (send-command ctx (str cmd))
       (.prompt rl))))
 
 (defn connect [conn host port full? terminating?]
@@ -213,8 +210,6 @@ interpreted by the REPL client. The following specials are available:
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
-        eval-handlers (atom {})
-        eval-counter (atom 0)
         terminating? (atom false)
         conn-out (.Socket. un/net)
         conn-in (connect conn-out host port true terminating?)]
@@ -242,8 +237,6 @@ interpreted by the REPL client. The following specials are available:
                                           :next (fn [rl]
                                                   (let [ctx {:istream istream
                                                              :ostream ostream
-                                                             :eval-handlers eval-handlers
-                                                             :eval-counter eval-counter
                                                              :callbacks (atom {})
                                                              :conn-in conn-in
                                                              :conn-out conn-out

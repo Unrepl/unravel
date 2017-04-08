@@ -7,12 +7,10 @@
 
 (def Transform (.-Transform (js/require "stream")))
 
-(defn send! [conn eval-counter s]
+(defn send! [conn s]
   (ud/dbug :send s)
   (.write conn s "utf8")
-  (.write conn "\n" "utf8")
-  (swap! eval-counter inc))
-
+  (.write conn "\n" "utf8"))
 
 (defn make-skip
   "Returns a transformer that skips the stream until sentinel. Pipes sentinel
