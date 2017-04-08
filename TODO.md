@@ -38,6 +38,7 @@
 
 ## Bugs
 
+- clear doc lines
 - connect before opening readline
 - fix completion
 - restore unrepl code

@@ -152,7 +152,7 @@ interpreted by the REPL client. The following specials are available:
     (send-aux-command ctx (pr-str [eval-id form]))))
 
 (defn plausible-symbol? [s]
-  (re-matches #"^[\w.]*(/[\w.]+)?$" s))
+  (re-matches #"^[*+?!_'?a-zA-Z-.]*(/[*+?!_'?a-zA-Z-.]+)?$" s))
 
 (defn action [{:keys [rl ostream] :as ctx}]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -160,19 +160,19 @@ interpreted by the REPL client. The following specials are available:
       (call-remote ctx
                    (list '->> (list 'clojure.repl/doc (symbol word))
                          'with-out-str
-                         ;; '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?).*"))
-                         ;; 'second
-                         )
-                   (fn [result]
+                         '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                         'rest)
+                   (fn [[result more]]
                      (when result
                        (let [pos (._getCursorPos rl)
-                             newline-count (->> result (re-seq #"\n") count)]
+                             txt (clojure.string/trimr result)
+                             newline-count (->> txt (re-seq #"\n") count)]
                          (println)
-                         (.write ostream (str result))
+                         (.write ostream (str txt (when more "...") "\n"))
                          (.moveCursor (js/require "readline")
                                       (.-output rl)
                                       (.-cols pos)
-                                      (- (+ newline-count 1))))))))))
+                                      (- (+ newline-count 2))))))))))
 
 (defn start [host port]
   (let [istream js/process.stdin
