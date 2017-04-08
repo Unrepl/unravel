@@ -151,9 +151,17 @@ interpreted by the REPL client. The following specials are available:
            cb)
     (send-aux-command ctx (pr-str [eval-id form]))))
 
-(defn action [ctx]
-  (call-remote ctx "hihi" #(ud/info :haha %))
-  #_(do-doc ctx (.-line rl) (.-cursor rl)))
+(defn action [{:keys [rl] :as ctx}]
+  (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
+    (call-remote ctx
+                 (list 'get (list 'clojure.string/split-lines
+                                  (list 'with-out-str (list 'clojure.repl/doc
+                                                            (symbol word)))) 2)
+                 (fn [result]
+                   (let [pos (._getCursorPos rl)]
+                     (println)
+                     (println result)
+                     (.moveCursor (js/require "readline") (.-output rl) (.-cols pos) -2))))))
 
 (defn start [host port]
   (let [istream js/process.stdin
