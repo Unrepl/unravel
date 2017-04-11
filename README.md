@@ -33,7 +33,7 @@ For a more up-to-date version, you can check out master:
 git clone https://github.com/pesterhazy/unravel.git
 cd unravel
 npm install
-npm run repl [--debug] <host> <port>
+scripts/run [--debug] <host> <port>
 ```
 
 ## Usage

@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/pesterhazy/unravel",
   "scripts": {
-    "repl": "lumo -c src -m unravel.core \"$@\""
+    "start": "lumo -c src -m unravel.core"
   },
   "dependencies": {
     "historic-readline": "^1.0.8",
