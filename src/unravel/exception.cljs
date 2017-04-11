@@ -1,5 +1,6 @@
 (ns unravel.exception
-  (:require [clojure.string]))
+  (:require [clojure.string]
+            [unravel.log :as ud]))
 
 (defn pretty-ex-type [sy]
   (-> sy
@@ -12,8 +13,18 @@
       (println (str "\t" a "." b " (" c ")")))
     (println (str "\t" (pr-str location)))))
 
-(defn print-ex-line [{:keys [type message] [a b c] :at}]
-  (println (str (pretty-ex-type type) " " message "  " a "." b " (" c ")")))
+(defn format-at [at]
+  (if (vector? at)
+    (let [[a b c] at]
+      (str a "." b " (" c ")"))
+    "(unknown)"))
+
+(defn print-ex-line [{:keys [type message at]}]
+  (println (str (pretty-ex-type type)
+                " "
+                message
+                "  "
+                (format-at at))))
 
 (defn print-ex [{:keys [via trace]}]
   (doseq [line via]

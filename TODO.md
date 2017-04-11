@@ -27,6 +27,8 @@
 - [ ] investigate using https://github.com/alexander-yakushev/compliment
 - [ ] explore data structures using a embedded web server/browser window
 - [ ] try using js/Promise to reduce nested callbacks
+- [ ] add BOOT_CLOJURE_VERSION=1.8.0 to boot example
+- [ ] wonky exceptions when running from boot
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [x] release bundle

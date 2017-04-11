@@ -1,0 +1,3 @@
+#!/bin/bash
+
+BOOT_CLOJURE_VERSION=1.8.0 boot -i "(do (require 'clojure.core.server) (clojure.core.server/start-server {:port 50505 :name :repl :accept 'clojure.core.server/repl}))" wait
