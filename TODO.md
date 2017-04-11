@@ -3,6 +3,7 @@
 - [ ] handle map ellisons
 - [ ] M-x
 - [ ] add screenshot
+- [ ] investigate adding caching option `-k`
 - [ ] add dumb terminal mode (`-d`)
 - [ ] reverse-search in history
 - [ ] bump lumo version
@@ -11,7 +12,8 @@
 - [ ] highlighting parens (a la lumo)
 - [ ] gensym unrepl namespace
 - [ ] C-C twice to quit
-- [ ] apropos, macroexpand, show-arglist
+- [ ] apropos (search in docstrings as well)
+- [ ] macroexpand
 - [ ] emojis?
 - [ ] 256 colors?
 - [ ] method autocompletion
@@ -22,6 +24,9 @@
 - [ ] why doesn't readline insert only completion on tab?
 - [ ] use uuids instead of gensyms
 - [ ] nicer printing for vars
+- [ ] investigate using https://github.com/alexander-yakushev/compliment
+- [ ] explore data structures using a embedded web server/browser window
+- [ ] try using js/Promise to reduce nested callbacks
 - [x] show clojure.repl/doc on current form on shortcut
 - [x] welcome message (connected to ...)
 - [x] release bundle
