@@ -86,6 +86,11 @@ unravel localhost 50505
 
 ## Changes
 
+### 0.2.1
+
+- Enable lumo caching (3x startup time improvement)
+- Fix exceptions when connected to Boot-based socket server
+
 ### 0.2.0
 
 - Live docs for vars and namespaces

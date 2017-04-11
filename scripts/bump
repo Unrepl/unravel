@@ -30,3 +30,11 @@
              "."
              (comp #(doto % prn)
                    #(update % 2 (comp inc js/parseInt))))
+
+(update-file "bin/unravel"
+             replace-one
+             #"(unravel_version=\")([\d.]*)(\")"
+             update-split
+             "."
+             (comp #(doto % prn)
+                   #(update % 2 (comp inc js/parseInt))))

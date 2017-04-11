@@ -3,4 +3,14 @@
 export UNRAVEL_HOME="${UNRAVEL_HOME:-$(npm -g root)/unravel-repl}"
 export NODE_PATH="${UNRAVEL_HOME}/node_modules"
 
-exec "${UNRAVEL_HOME}/node_modules/lumo-cljs/bin/lumo" -c "${UNRAVEL_HOME}/src" -m unravel.core "$@"
+unravel_version="0.2.1"
+dot_dir="$HOME/.unravel"
+cache_dir="${dot_dir}/cache/${unravel_version}"
+
+mkdir -p "$cache_dir"
+
+exec "${UNRAVEL_HOME}/node_modules/lumo-cljs/bin/lumo" \
+     -c "${UNRAVEL_HOME}/src" \
+     -k "${cache_dir}" \
+     -m unravel.core \
+     "$@"

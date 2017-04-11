@@ -3,7 +3,7 @@
 - [ ] handle map ellisons
 - [ ] M-x
 - [ ] add screenshot
-- [ ] investigate adding caching option `-k`
+- [x] investigate adding caching option `-k`
 - [ ] add dumb terminal mode (`-d`)
 - [ ] reverse-search in history
 - [ ] bump lumo version
@@ -52,5 +52,3 @@
 - [x] s/_refreshLine/prompt(true)/
 
 ## Bugs
-
-- update docs
