@@ -14,6 +14,11 @@
             [unravel.lisp :as ul]
             [unravel.exception :as ue]))
 
+(defn squawk [rl & xs]
+  (println)
+  (prn (vec xs))
+  (.prompt rl true))
+
 (def start-cmd "(do (in-ns 'user) (unrepl.repl/start))")
 
 (defn send-command [ctx s]
@@ -24,7 +29,7 @@
 
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
-(defmethod process [:conn :prompt] [[_ opts] origin {:keys [rl]}]
+(defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl]}]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
       (.setPrompt rl (if (ut/interactive?)
@@ -32,24 +37,31 @@
                        "")))
     (.prompt rl true)))
 
-(defmethod process [:conn :eval] [[_ result counter] origin {:keys [rl]}]
+(defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval]}]
+  (reset! pending-eval nil)
   (ut/cyan #(prn result)))
 
-(defmethod process [:aux :eval] [[_ [eval-id v] counter] origin {:keys [rl callbacks]}]
-  (when-let [f (-> @callbacks (get eval-id))]
-    (f v)))
+(defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ {:keys [rl pending-eval]}]
+  (reset! pending-eval {:action actions}))
 
-(defmethod process [:conn :exception] [[_ e] origin {:keys [rl]}]
+(defmethod process [:aux :eval] [[_ result counter] _ {:keys [rl callbacks]}]
+  (when (and (vector? result) (= :unravel/rpc (first result)))
+    (let [[_ eval-id v] result]
+      (when-let [f (-> @callbacks (get eval-id))]
+        (f v)))))
+
+(defmethod process [:conn :exception] [[_ e] _ {:keys [rl pending-eval]}]
+  (reset! pending-eval nil)
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
 
-(defmethod process [:conn :out] [[_ s] origin {:keys [rl]}]
+(defmethod process [:conn :out] [[_ s] _ {:keys [rl]}]
   (.write js/process.stdout s))
 
 (defmethod process :default [command]
   (ud/dbug :unknown-command command))
 
 (defn did-receive [ctx command origin]
-  (ud/dbug :receive command)
+  (ud/dbug :receive {:origin origin} command)
   (process command origin ctx))
 
 ;; use qualified symbols in case code is invoked
@@ -142,7 +154,7 @@ interpreted by the REPL client. The following specials are available:
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
   (let [eval-id (str (gensym))
-        cmd (pr-str [eval-id form])]
+        cmd (pr-str [:unravel/rpc eval-id form])]
     (swap! callbacks
            assoc
            eval-id
@@ -151,11 +163,6 @@ interpreted by the REPL client. The following specials are available:
 
 (defn plausible-symbol? [s]
   (re-matches #"^[*+=?!_?a-zA-Z-.]+(/[*+=?!_?a-zA-Z-.]+)?$" s))
-
-(defn squawk [rl & xs]
-  (println)
-  (apply prn xs)
-  (.prompt rl true))
 
 (defn cut [s n]
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
@@ -208,6 +215,15 @@ interpreted by the REPL client. The following specials are available:
                    (cb* nil (clj->js [(map str completions) word]))
                    (show-doc ctx false)))))
 
+(defn interrupt [{:keys [rl pending-eval] :as ctx}]
+  (if @pending-eval
+    (some->> @pending-eval :action :interrupt pr-str (send-aux-command ctx))
+    (do
+      (println)
+      (when (ut/rich?)
+        (.clearLine rl))
+      (.prompt rl false))))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -239,6 +255,7 @@ interpreted by the REPL client. The following specials are available:
                                                   (let [ctx {:istream istream
                                                              :ostream ostream
                                                              :callbacks (atom {})
+                                                             :pending-eval (atom nil)
                                                              :conn-in conn-in
                                                              :conn-out conn-out
                                                              :aux-in aux-in
@@ -260,11 +277,7 @@ interpreted by the REPL client. The following specials are available:
                                                                       (ud/dbug :end "conn-out")
                                                                       (.end conn-out)
                                                                       (.end aux-out)))
-                                                    (.on rl "SIGINT" (fn []
-                                                                       (println)
-                                                                       (when (ut/rich?)
-                                                                         (.clearLine rl))
-                                                                       (.prompt rl false)))
+                                                    (.on rl "SIGINT" #(interrupt ctx))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
                                                            (cond
