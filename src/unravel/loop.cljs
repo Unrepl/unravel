@@ -273,11 +273,16 @@ interpreted by the REPL client. The following specials are available:
                                                                        (special ctx cmd)
                                                                        (send-command ctx line))))
                                                     (.on rl "close" (fn []
+                                                                      (when (ut/rich?)
+                                                                        (println))
                                                                       (reset! terminating? true)
                                                                       (ud/dbug :end "conn-out")
                                                                       (.end conn-out)
                                                                       (.end aux-out)))
                                                     (.on rl "SIGINT" #(interrupt ctx))
+                                                    (.on istream "error"
+                                                         (fn []
+                                                           (.exit js/process 143)))
                                                     (.on istream "keypress"
                                                          (fn [chunk key]
                                                            (cond

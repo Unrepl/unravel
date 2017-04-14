@@ -89,6 +89,7 @@ unravel localhost 50505
 ### 0.2.1
 
 - Enable lumo caching (3x startup time improvement)
+- Interrupt running process on SIGINT
 - Fix exceptions when connected to Boot-based socket server
 
 ### 0.2.0
