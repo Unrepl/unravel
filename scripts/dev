@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 
-lumo -c src -e "(require 'unravel.core)" -e "(unravel.core/init)" -r "$@"
+lumo -c src:dev -e """
+(require 'cljs.user)
+""" \
+-r "$@"
