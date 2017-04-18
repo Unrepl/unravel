@@ -72,7 +72,7 @@ Using Leiningen:
 JVM_OPTS='-Dclojure.server.myrepl={:port,50505,:accept,clojure.core.server/repl}' lein repl
 ```
 
-Using a pain Clojure jar:
+Using a plain Clojure jar:
 
 ```
 java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar
