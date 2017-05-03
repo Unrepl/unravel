@@ -1,5 +1,6 @@
 ## Features
 
+- [ ] distribute a compiled bundle with npm
 - [ ] try with inf-clojure
 - [ ] handle map ellisons
 - [ ] M-x
