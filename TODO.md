@@ -1,8 +1,10 @@
 ## Features
 
+- [ ] try with inf-clojure
 - [ ] handle map ellisons
 - [ ] M-x
 - [ ] add screenshot
+- [ ] make it work with yarn
 - [x] investigate adding caching option `-k`
 - [ ] add dumb terminal mode (`-d`)
 - [ ] reverse-search in history

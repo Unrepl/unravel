@@ -131,11 +131,13 @@ Show docstring
 
 See [TODO.md](TODO.md) for a list of planned improvements. Unravel is developed in conjunction with [unrepl](https://github.com/cgrand/unrepl).
 
-## Related work
+## Resources
 
 - The Ultimate Guide To Clojure REPLs on the [Socket REPL](https://lambdaisland.com/guides/clojure-repls/clojure-repls#orgheadline20)
 
 - [replicant](https://github.com/puredanger/replicant): proof of concept of using Socket REPL for tooling
+
+Join the `#unrepl` channel in the [Clojurians slack](http://clojurians.net/)!
 
 ## Copyright
 
