@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+trap "exit" INT TERM && trap "kill 0" EXIT
+
+scripts/server --wait & P1=$!
+sleep 0.3
+scripts/try
