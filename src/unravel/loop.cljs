@@ -113,14 +113,7 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (-> (->> ["print.clj" "repl.clj"]
-           (map #(un/join-path (or js/process.env.UNRAVEL_HOME ".")
-                               "src"
-                               "unrepl"
-                               %))
-           (mapv lumo.io/slurp))
-      (conj start-cmd)
-      (clojure.string/join)))
+  (lumo.io/slurp "resources/unrepl/blob.clj"))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
@@ -224,6 +217,8 @@ interpreted by the REPL client. The following specials are available:
         (.clearLine rl))
       (.prompt rl false))))
 
+(defn banana [{:keys [rl] :as ctx}])
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -287,6 +282,7 @@ interpreted by the REPL client. The following specials are available:
                                                          (fn [chunk key]
                                                            (cond
                                                              (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (show-doc ctx true)
+                                                             (banana ctx)
+                                                             #_(show-doc ctx true)
                                                              :else
                                                              (show-doc ctx false))))))}))))))))

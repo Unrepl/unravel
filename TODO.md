@@ -1,7 +1,7 @@
 ## Features
 
+- [ ] check if form is can be read by sending string over tooling repl
 - [ ] distribute a compiled bundle with npm
-- [ ] try with inf-clojure
 - [ ] handle map ellisons
 - [ ] M-x
 - [ ] add screenshot
@@ -31,27 +31,13 @@
 - [ ] explore data structures using a embedded web server/browser window
 - [ ] try using js/Promise to reduce nested callbacks
 - [ ] add BOOT_CLOJURE_VERSION=1.8.0 to boot example
-- [ ] wonky exceptions when running from boot
-- [x] show clojure.repl/doc on current form on shortcut
-- [x] welcome message (connected to ...)
-- [x] release bundle
-- [x] improve docs
-- [x] add npm version badge
-- [x] add `--version` cli switch
-- [x] show current namespace
-- [x] handle empty lines
-- [x] Tab completion
-- [x] use defrecord for tagged values, i.e. ratios, classes etc
-- [x] persistent history
-- [x] pretty-printing exceptions
-- [x] clear on C-C
-- [x] update payload
-- [x] lazy seq elisions
-- [x] restore namespace prompts
-- [x] refactor to a map?
-- [x] use separate tooling connection to avoid reprompts
-- [x] tests
-- [x] print arglist automatically as you're typing a symbol
-- [x] s/_refreshLine/prompt(true)/
 
 ## Bugs
+
+- [ ] wonky exceptions when running from boot
+
+## Ideas
+
+- sidecar window
+  - scratchpad with test values
+  - watching an atom
