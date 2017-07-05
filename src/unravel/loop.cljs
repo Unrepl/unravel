@@ -225,13 +225,13 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl false))))
 
 (defn check-readable-cmd [s]
-  (list '(fn [s] (or (clojure.string/blank? s) (try (read-string s) true (catch Exception e false)))) s))
+  (list '(fn [s] (when-not (clojure.string/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
 
 (defn check-readable [{:keys [rl state] :as ctx}]
   (call-remote ctx
                (check-readable-cmd (.-line rl))
-               (fn [ok?]
-                 (let [warn? (not ok?)]
+               (fn [ex-str]
+                 (let [warn? (boolean ex-str)]
                    (when (not= warn? (boolean (:warn? @state)))
                      (swap! state assoc :warn? warn?)
                      (set-prompt ctx nil warn?)
