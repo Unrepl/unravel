@@ -227,15 +227,21 @@ interpreted by the REPL client. The following specials are available:
 (defn check-readable-cmd [s]
   (list '(fn [s] (when-not (clojure.string/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
 
-(defn check-readable [{:keys [rl state] :as ctx}]
+(defn check-readable [{:keys [rl state ostream] :as ctx} full?]
   (call-remote ctx
                (check-readable-cmd (.-line rl))
                (fn [ex-str]
-                 (let [warn? (boolean ex-str)]
-                   (when (not= warn? (boolean (:warn? @state)))
-                     (swap! state assoc :warn? warn?)
-                     (set-prompt ctx nil warn?)
-                     (.prompt rl true))))))
+                 (if full?
+                   (when ex-str
+                     (println)
+                     (.clearScreenDown ostream)
+                     (ut/red #(println "Cannot read:" ex-str))
+                     (.prompt rl true))
+                   (let [warn? (boolean ex-str)]
+                     (when (not= warn? (boolean (:warn? @state)))
+                       (swap! state assoc :warn? warn?)
+                       (set-prompt ctx nil warn?)
+                       (.prompt rl true)))))))
 
 (defn start [host port]
   (let [istream js/process.stdin
@@ -300,8 +306,10 @@ interpreted by the REPL client. The following specials are available:
                                                          (fn [chunk key]
                                                            (cond
                                                              (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (show-doc ctx true)
+                                                             (do
+                                                               #_(check-readable ctx true)
+                                                               (show-doc ctx true))
                                                              :else
                                                              (do
-                                                               (check-readable ctx)
+                                                               (check-readable ctx false)
                                                                (show-doc ctx false)))))))}))))))))
