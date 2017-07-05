@@ -27,14 +27,21 @@
 (defn send-aux-command [ctx s]
   (uw/send! (:aux-out ctx) s))
 
+(defn set-prompt [{:keys [rl state]} ns warn?]
+  (.setPrompt rl (if (ut/interactive?)
+                   (str (or ns (:ns @state))
+                        (when warn? "\33[31m")
+                        "=> "
+                        (when warn? "\33[0m"))
+                   "")))
+
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
-(defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl]}]
+(defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl state] :as ctx}]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
-      (.setPrompt rl (if (ut/interactive?)
-                       (str ns "=> ")
-                       "")))
+      (swap! state assoc :ns ns)
+      (set-prompt ctx ns false))
     (.prompt rl true)))
 
 (defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval]}]
@@ -217,7 +224,18 @@ interpreted by the REPL client. The following specials are available:
         (.clearLine rl))
       (.prompt rl false))))
 
-(defn banana [{:keys [rl] :as ctx}])
+(defn check-readable-cmd [s]
+  (list '(fn [s] (or (clojure.string/blank? s) (try (read-string s) true (catch Exception e false)))) s))
+
+(defn check-readable [{:keys [rl state] :as ctx}]
+  (call-remote ctx
+               (check-readable-cmd (.-line rl))
+               (fn [ok?]
+                 (let [warn? (not ok?)]
+                   (when (not= warn? (boolean (:warn? @state)))
+                     (swap! state assoc :warn? warn?)
+                     (set-prompt ctx nil warn?)
+                     (.prompt rl true))))))
 
 (defn start [host port]
   (let [istream js/process.stdin
@@ -282,7 +300,8 @@ interpreted by the REPL client. The following specials are available:
                                                          (fn [chunk key]
                                                            (cond
                                                              (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (banana ctx)
-                                                             #_(show-doc ctx true)
+                                                             (show-doc ctx true)
                                                              :else
-                                                             (show-doc ctx false))))))}))))))))
+                                                             (do
+                                                               (check-readable ctx)
+                                                               (show-doc ctx false)))))))}))))))))
