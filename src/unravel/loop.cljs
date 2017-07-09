@@ -4,6 +4,7 @@
             [lumo.core]
             [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]
+            [cognitect.transit :as transit]
             [unravel.version :as uv]
             [unravel.node :as un]
             [unravel.network :as uw]
@@ -13,6 +14,9 @@
             [unravel.util :as uu]
             [unravel.lisp :as ul]
             [unravel.exception :as ue]))
+
+(def transit-reader (transit/reader :json))
+(def transit-writer (transit/writer :json))
 
 (defn squawk [rl & xs]
   (println)
@@ -243,6 +247,20 @@ interpreted by the REPL client. The following specials are available:
                        (set-prompt ctx nil warn?)
                        (.prompt rl true)))))))
 
+(defn handle* [m]
+  {:foo :bar})
+
+(defn handle [ctx req res]
+  (let [body (transit/read transit-reader (.-body req))
+        result (handle* body)]
+    (.send res (transit/write transit-writer result))))
+
+(defn create-http-server [ctx]
+  (let [app (un/express)]
+    (.use app (.text (js/require "body-parser") #js {:type "*/*"}))
+    (.post app "/action" #(handle ctx %1 %2))
+    (.listen app 9999)))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -281,6 +299,7 @@ interpreted by the REPL client. The following specials are available:
                                                              :aux-out aux-out
                                                              :rl rl
                                                              :state (atom {})}]
+                                                    (create-http-server ctx)
                                                     (reset! completer-fn (partial complete ctx))
                                                     (.on conn-in "data" #(did-receive ctx % :conn))
                                                     (.on aux-in "data" #(did-receive ctx % :aux))
