@@ -247,18 +247,22 @@ interpreted by the REPL client. The following specials are available:
                        (set-prompt ctx nil warn?)
                        (.prompt rl true)))))))
 
-(defn handle* [m]
-  {:foo :bar})
+(defn handle [ctx m cb]
+  (call-remote ctx m cb))
 
-(defn handle [ctx req res]
-  (let [body (transit/read transit-reader (.-body req))
-        result (handle* body)]
-    (.send res (transit/write transit-writer result))))
+(defn do-handle [ctx req res]
+  (let [body (transit/read transit-reader (.-body req))]
+    (handle ctx body (fn [result] (.send res (transit/write transit-writer result))))))
 
 (defn create-http-server [ctx]
   (let [app (un/express)]
     (.use app (.text (js/require "body-parser") #js {:type "*/*"}))
-    (.post app "/action" #(handle ctx %1 %2))
+    (.all app "/*" (fn [req res next]
+                     ;; FIXME
+                     (.header res "Access-Control-Allow-Origin", "*")
+                     (.header res "Access-Control-Allow-Headers", "X-Requested-With")
+                     (next)))
+    (.post app "/action" #(do-handle ctx %1 %2))
     (.listen app 9999)))
 
 (defn start [host port]

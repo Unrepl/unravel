@@ -1,5 +1,6 @@
 ## Features
 
+- [ ] Fix CORS headers!
 - [x] check if form is can be read by sending string over tooling repl
 - [ ] use unicode glyph to signal invalid form
 - [ ] distribute a compiled bundle with npm
