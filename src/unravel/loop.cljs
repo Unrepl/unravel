@@ -27,14 +27,21 @@
 (defn send-aux-command [ctx s]
   (uw/send! (:aux-out ctx) s))
 
+(defn set-prompt [{:keys [rl state]} ns warn?]
+  (.setPrompt rl (if (ut/interactive?)
+                   (str (or ns (:ns @state))
+                        (when warn? "\33[31m")
+                        "=> "
+                        (when warn? "\33[0m"))
+                   "")))
+
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
-(defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl]}]
+(defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl state] :as ctx}]
   (let [ns (:form (get opts 'clojure.core/*ns*))]
     (when ns
-      (.setPrompt rl (if (ut/interactive?)
-                       (str ns "=> ")
-                       "")))
+      (swap! state assoc :ns ns)
+      (set-prompt ctx ns false))
     (.prompt rl true)))
 
 (defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval]}]
@@ -113,14 +120,7 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (-> (->> ["print.clj" "repl.clj"]
-           (map #(un/join-path (or js/process.env.UNRAVEL_HOME ".")
-                               "src"
-                               "unrepl"
-                               %))
-           (mapv lumo.io/slurp))
-      (conj start-cmd)
-      (clojure.string/join)))
+  (lumo.io/slurp "resources/unrepl/blob.clj"))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
@@ -224,6 +224,25 @@ interpreted by the REPL client. The following specials are available:
         (.clearLine rl))
       (.prompt rl false))))
 
+(defn check-readable-cmd [s]
+  (list '(fn [s] (when-not (clojure.string/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
+
+(defn check-readable [{:keys [rl state ostream] :as ctx} full?]
+  (call-remote ctx
+               (check-readable-cmd (.-line rl))
+               (fn [ex-str]
+                 (if full?
+                   (when ex-str
+                     (println)
+                     (.clearScreenDown ostream)
+                     (ut/red #(println "Cannot read:" ex-str))
+                     (.prompt rl true))
+                   (let [warn? (boolean ex-str)]
+                     (when (not= warn? (boolean (:warn? @state)))
+                       (swap! state assoc :warn? warn?)
+                       (set-prompt ctx nil warn?)
+                       (.prompt rl true)))))))
+
 (defn start [host port]
   (let [istream js/process.stdin
         ostream js/process.stdout
@@ -287,6 +306,10 @@ interpreted by the REPL client. The following specials are available:
                                                          (fn [chunk key]
                                                            (cond
                                                              (and (.-ctrl key) (= "o" (.-name key)))
-                                                             (show-doc ctx true)
+                                                             (do
+                                                               #_(check-readable ctx true)
+                                                               (show-doc ctx true))
                                                              :else
-                                                             (show-doc ctx false))))))}))))))))
+                                                             (do
+                                                               (check-readable ctx false)
+                                                               (show-doc ctx false)))))))}))))))))
