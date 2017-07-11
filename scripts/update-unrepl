@@ -4,4 +4,6 @@ set -euo pipefail
 
 cd ../unrepl
 git pull
-cp src/unrepl/{print.clj,repl.clj} ../unravel/src/unrepl/
+rm -f resources/unrepl/blob.clj
+lein unrepl-make-blob
+cp resources/unrepl/blob.clj ../unravel/resources/unrepl/blob.clj

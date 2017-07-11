@@ -1,6 +1,10 @@
 ## Features
 
 - [ ] check if form is can be read by sending string over tooling repl
+- [ ] Fix CORS headers!
+- [ ] update to lumo 1.6
+- [x] check if form is can be read by sending string over tooling repl
+- [ ] use unicode glyph to signal invalid form
 - [ ] distribute a compiled bundle with npm
 - [ ] handle map ellisons
 - [ ] M-x

@@ -253,13 +253,13 @@ interpreted by the REPL client. The following specials are available:
          "started"
          (fn []
            (let [aux-out (.Socket. un/net)
-                 aux-in (connect aux-out host port false terminating?)
+                 aux-in (connect aux-out host port true terminating?)
                  completer-fn (atom nil)]
-             (ud/dbug :conn)
+             (ud/dbug :main-connection-ready)
              (.on aux-in
                   "started"
                   (fn []
-                    (ud/dbug :go)
+                    (ud/dbug :aux-connection-ready)
                     (when (ut/interactive?)
                       (banner host port))
                     (.createInterface un/readline
