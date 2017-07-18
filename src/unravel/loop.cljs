@@ -19,7 +19,7 @@
   (prn (vec xs))
   (.prompt rl true))
 
-(def start-cmd "(do (in-ns 'user) (unrepl.repl/start))")
+(def start-cmd "")
 
 (defn send-command [ctx s]
   (uw/send! (:conn-out ctx) s))
@@ -143,7 +143,7 @@ interpreted by the REPL client. The following specials are available:
                       (.setNoDelay conn true)
                       (ud/dbug :connect full?)
                       (.write conn (if full?
-                                     (read-payload)
+                                     (str (read-payload) "\n" start-cmd "\n")
                                      start-cmd))
                       (.write conn "\n"))))
         (.on "error" (fn [err]

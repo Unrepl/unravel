@@ -1,5 +1,6 @@
 ## Features
 
+- [ ] upstream setting in-ns
 - [ ] check if form is can be read by sending string over tooling repl
 - [ ] Fix CORS headers!
 - [ ] update to lumo 1.6
