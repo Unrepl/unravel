@@ -1,9 +1,11 @@
 ## Features
 
+- [ ] better handling of multi-line inputs
 - [ ] upstream setting in-ns
 - [ ] check if form is can be read by sending string over tooling repl
 - [ ] Fix CORS headers!
 - [ ] update to lumo 1.6
+- [ ] support :repl/quit
 - [x] check if form is can be read by sending string over tooling repl
 - [ ] use unicode glyph to signal invalid form
 - [ ] distribute a compiled bundle with npm
