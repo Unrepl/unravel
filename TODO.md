@@ -1,5 +1,6 @@
 ## Features
 
+- [ ] "error: write after read"
 - [ ] better handling of multi-line inputs
 - [ ] upstream setting in-ns
 - [ ] check if form is can be read by sending string over tooling repl
