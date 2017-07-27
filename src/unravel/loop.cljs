@@ -73,28 +73,15 @@
   (ud/dbug :receive {:origin origin} command)
   (process command origin ctx))
 
-;; use qualified symbols in case code is invoked
-;; after calling (in-ns 'invalid-ns)
-
 (defn cmd-complete [prefix]
-  (list 'clojure.core/let ['prefix prefix]
-        '(clojure.core/let [all (clojure.core/all-ns)
-                            [_ ns va] (clojure.core/re-matches #"^(.*)/(.*)$" prefix)
-                            vars (clojure.core/->> (if ns
-                                                     (clojure.core/some->> ns
-                                                                           clojure.core/symbol
-                                                                           clojure.core/find-ns
-                                                                           clojure.core/ns-publics)
-                                                     (clojure.core/ns-map clojure.core/*ns*))
-                                                   clojure.core/keys)
-                            nss (clojure.core/when-not ns
-                                  (clojure.core/->> (clojure.core/all-ns)
-                                                    (clojure.core/map clojure.core/ns-name)))]
-           (clojure.core/->> (clojure.core/concat vars nss)
-                             (clojure.core/filter #(clojure.core/-> %
-                                                                    clojure.core/str
-                                                                    (.startsWith (clojure.core/or va prefix))))
-                             clojure.core/sort))))
+  ;; Compliment options:
+  ;; - :ns - namespace where completion is initiated;
+  ;; - :context - code form around the prefix;
+  ;; - :sort-order (either :by-length or :by-name);
+  ;; - :plain-candidates - if true, returns plain strings instead of maps;
+  ;; - :extra-metadata - set of extra fields to add to the maps;
+  ;; - :sources - list of source keywords to use.
+  (list 'compliment.core/completions prefix '{:plain-candidates true}))
 
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
@@ -122,7 +109,8 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj")))
+  (str (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "compliment-blob.clj"))
+       (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj"))))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
