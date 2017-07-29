@@ -7,16 +7,20 @@
 
 (defrecord Ellipsis [get])
 
-(defn ellipsis [m]
-  (map->Ellipsis m))
+(defrecord ClojureVar [name])
 
 (extend-protocol IPrintWithWriter
   Ellipsis
   (-pr-writer [v writer _]
     (let [counter (swap! ellipsis-counter inc)]
       (swap! ellipsis-store assoc counter (:get v))
-      (write-all writer "#__" counter))))
+      (write-all writer "#__" counter)))
+
+  ClojureVar
+  (-pr-writer [v writer _]
+    (write-all writer "#'" (:name v))))
 
 (defn register-tag-parsers []
   (cljs.reader/register-default-tag-parser! tagged-literal)
-  (cljs.reader/register-tag-parser! 'unrepl/... ellipsis))
+  (cljs.reader/register-tag-parser! 'unrepl/... map->Ellipsis)
+  (cljs.reader/register-tag-parser! 'clojure/var ->ClojureVar))
