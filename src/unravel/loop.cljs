@@ -21,11 +21,13 @@
 
 (def start-cmd "")
 
-(defn send-command [ctx s]
-  (uw/send! (:conn-out ctx) s))
+(defn send-command [{:keys [terminating?] :as ctx} s]
+  (when-not @terminating?
+    (uw/send! (:conn-out ctx) s)))
 
-(defn send-aux-command [ctx s]
-  (uw/send! (:aux-out ctx) s))
+(defn send-aux-command [{:keys [terminating?] :as ctx} s]
+  (when-not @terminating?
+    (uw/send! (:aux-out ctx) s)))
 
 (defn set-prompt [{:keys [rl state]} ns warn?]
   (.setPrompt rl (if (ut/interactive?)
@@ -279,6 +281,7 @@ interpreted by the REPL client. The following specials are available:
                                                              :conn-out conn-out
                                                              :aux-in aux-in
                                                              :aux-out aux-out
+                                                             :terminating? terminating?
                                                              :rl rl
                                                              :state (atom {})}]
                                                     (reset! completer-fn (partial complete ctx))
