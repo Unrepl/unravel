@@ -122,7 +122,7 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (lumo.io/slurp "resources/unrepl/blob.clj"))
+  (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj")))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond

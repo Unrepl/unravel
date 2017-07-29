@@ -1,13 +1,8 @@
 ## Features
 
-- [ ] "error: write after read"
 - [ ] better handling of multi-line inputs
 - [ ] upstream setting in-ns
-- [ ] check if form is can be read by sending string over tooling repl
-- [ ] Fix CORS headers!
-- [ ] update to lumo 1.6
 - [ ] support :repl/quit
-- [x] check if form is can be read by sending string over tooling repl
 - [ ] use unicode glyph to signal invalid form
 - [ ] distribute a compiled bundle with npm
 - [ ] handle map ellisons
@@ -17,7 +12,6 @@
 - [x] investigate adding caching option `-k`
 - [ ] add dumb terminal mode (`-d`)
 - [ ] reverse-search in history
-- [ ] bump lumo version
 - [ ] multi-line input
 - [ ] interrupt eval on Control-C
 - [ ] highlighting parens (a la lumo)
