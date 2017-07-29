@@ -86,6 +86,14 @@ unravel localhost 50505
 
 ## Changes
 
+### 0.2.2
+
+- Print vars correctly
+- Update unrepl
+- Use 'user as init-ns
+- Don't write to socket after closing connection
+- Update to Lumo 1.6.0
+
 ### 0.2.1
 
 - Enable lumo caching (3x startup time improvement)
