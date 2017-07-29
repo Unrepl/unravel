@@ -69,7 +69,7 @@ boot -i "(do (require 'clojure.core.server) (clojure.core.server/start-server {:
 Or if you have `boot >= 2.7.2-SNAPSHOT`:
 
 ```
-boot socket-server --port 50505 --accept clojure.core.server/repl wait
+boot socket-server --port 50505 wait
 ```
 
 Using Leiningen:
