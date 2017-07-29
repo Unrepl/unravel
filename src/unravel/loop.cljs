@@ -109,8 +109,12 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (str (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "compliment-blob.clj"))
-       (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj"))))
+  (->> ["compliment-blob.clj" "blob.clj"]
+       (map #(lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".")
+                                          "resources"
+                                          "unrepl"
+                                          %)))
+       (clojure.string/join "\n")))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
