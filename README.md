@@ -25,6 +25,12 @@ sudo npm install -g lumo-cljs unravel-repl
 
 This installs the `unravel` binary and adds it to your PATH.
 
+On macOS you can also use
+
+```
+brew install bfontaine/utils/unravel
+```
+
 ### Installation from git
 
 For a more up-to-date version, you can check out master:
