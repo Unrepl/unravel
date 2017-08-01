@@ -20,7 +20,7 @@ To use unravel you need Clojure 1.8.0 or above.
 On Linux or macOS you can install (or update) unravel via npm:
 
 ```
-sudo npm install -g lumo-cljs unravel-repl
+sudo npm install -g unravel-repl
 ```
 
 This installs the `unravel` binary and adds it to your PATH.
@@ -72,6 +72,12 @@ To launch a Clojure process with a Socket REPL listening on port 50505 using boo
 boot -i "(do (require 'clojure.core.server) (clojure.core.server/start-server {:port 50505 :name :repl :accept 'clojure.core.server/repl}))" wait
 ```
 
+Or if you have `boot >= 2.7.2-SNAPSHOT`:
+
+```
+boot socket-server --port 50505 wait
+```
+
 Using Leiningen:
 
 ```
@@ -91,6 +97,14 @@ unravel localhost 50505
 ```
 
 ## Changes
+
+### 0.2.2
+
+- Print vars correctly
+- Update unrepl
+- Use 'user as init-ns
+- Don't write to socket after closing connection
+- Update to Lumo 1.6.0
 
 ### 0.2.1
 

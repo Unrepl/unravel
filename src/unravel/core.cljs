@@ -11,7 +11,7 @@
   (js/process.exit 1))
 
 (defn print-version! []
-  (println "Unravel" uv/version)
+  (println "Unravel" uv/version (str "(Lumo " lumo.core/*lumo-version* ")"))
   (js/process.exit 0))
 
 (defn parse [args]

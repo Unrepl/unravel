@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-lumo -c src:dev -e """
+node_modules/.bin/lumo -c src:dev -e """
 (require 'cljs.user)
 """ \
 -r "$@"

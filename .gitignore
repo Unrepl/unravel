@@ -6,3 +6,4 @@ test/*.is
 test/*.err
 **/*.pyc
 .lumo_cache
+.socket-port
