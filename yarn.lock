@@ -256,9 +256,9 @@ jszip@2.6.1:
   dependencies:
     pako "~1.0.2"
 
-lumo-cljs@1.6.0:
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/lumo-cljs/-/lumo-cljs-1.6.0.tgz#59cbe4f4b8844f12b96caa1c3ffbf067e0d92ea9"
+lumo-cljs@1.7.0:
+  version "1.7.0"
+  resolved "https://registry.yarnpkg.com/lumo-cljs/-/lumo-cljs-1.7.0.tgz#d9d70185b22683b4aa5e53c4189e26c22d51b609"
   dependencies:
     jszip "2.6.1"
     progress "^2.0.0"
