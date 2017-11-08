@@ -2,6 +2,7 @@
   (:require [clojure.string]
             [cljs.tools.reader :as reader]
             [cljs.tools.reader.reader-types :as reader-types]
+            [unravel.tags :as ut]
             [unravel.util :as uu])
   (:import [goog.string StringBuffer]))
 
@@ -16,7 +17,8 @@
         (str sb)))))
 
 (defn safe-read-string [s]
-  (binding [reader/*default-data-reader-fn* tagged-literal]
+  (binding [reader/*default-data-reader-fn* tagged-literal
+            reader/*data-readers* ut/tag-map]
     (let [r (reader-types/string-push-back-reader s)]
       [(reader/read r)
        (uu/unblank (clojure.string/trim (read-chars r)))])))

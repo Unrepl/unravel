@@ -20,6 +20,10 @@
   (-pr-writer [v writer _]
     (write-all writer "#'" (:name v))))
 
+(def tag-map
+  {'unrepl/... map->Ellipsis
+   'clojure/var ->ClojureVar})
+
 (defn register-tag-parsers []
   (cljs.reader/register-default-tag-parser! tagged-literal)
   (cljs.reader/register-tag-parser! 'unrepl/... map->Ellipsis)

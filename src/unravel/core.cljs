@@ -2,7 +2,6 @@
   (:require [clojure.string]
             [unravel.log :as ul]
             [unravel.version :as uv]
-            [unravel.tags :as ut]
             [unravel.loop :as uo])
   (:import [goog.string StringBuffer]))
 
@@ -28,8 +27,7 @@
           []
           args))
 
-(defn init []
-  (ut/register-tag-parsers))
+(defn init [])
 
 (defn -main [& more]
   (init)
