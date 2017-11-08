@@ -1,30 +1,25 @@
 (ns unravel.lisp
   (:require [clojure.string]
+            [cljs.tools.reader :as reader]
+            [cljs.tools.reader.reader-types :as reader-types]
             [unravel.util :as uu])
   (:import [goog.string StringBuffer]))
-
-(defn- reader-eof? [msg]
-  (or
-   (= "EOF while reading" msg)
-   (= "EOF while reading string" msg)))
 
 (defn- read-chars
   [reader]
   (let [sb (StringBuffer.)]
-    (loop [c (cljs.reader/read-char reader)]
+    (loop [c (reader-types/read-char reader)]
       (if-not (nil? c)
         (do
           (.append sb c)
-          (recur (cljs.reader/read-char reader)))
+          (recur (reader-types/read-char reader)))
         (str sb)))))
 
 (defn safe-read-string [s]
-  (let [reader (cljs.reader/push-back-reader s)
-        r (try
-            (cljs.reader/read reader true ::eof false)
-            (catch js/Error e ::eof))]
-    (when (not= ::eof r)
-      [r (uu/unblank (clojure.string/trim (read-chars reader)))])))
+  (binding [reader/*default-data-reader-fn* tagged-literal]
+    (let [r (reader-types/string-push-back-reader s)]
+      [(reader/read r)
+       (uu/unblank (clojure.string/trim (read-chars r)))])))
 
 (def whitespace-regex #"([\s,])(.*)")
 (def word-regex #"([*+=?!_'?a-zA-Z-][*+=?!_'?a-zA-Z0-9/.-]*)(.*)")
