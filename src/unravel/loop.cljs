@@ -77,24 +77,10 @@
 ;; after calling (in-ns 'invalid-ns)
 
 (defn cmd-complete [prefix]
-  (list 'clojure.core/let ['prefix prefix]
-        '(clojure.core/let [all (clojure.core/all-ns)
-                            [_ ns va] (clojure.core/re-matches #"^(.*)/(.*)$" prefix)
-                            vars (clojure.core/->> (if ns
-                                                     (clojure.core/some->> ns
-                                                                           clojure.core/symbol
-                                                                           clojure.core/find-ns
-                                                                           clojure.core/ns-publics)
-                                                     (clojure.core/ns-map clojure.core/*ns*))
-                                                   clojure.core/keys)
-                            nss (clojure.core/when-not ns
-                                  (clojure.core/->> (clojure.core/all-ns)
-                                                    (clojure.core/map clojure.core/ns-name)))]
-           (clojure.core/->> (clojure.core/concat vars nss)
-                             (clojure.core/filter #(clojure.core/-> %
-                                                                    clojure.core/str
-                                                                    (.startsWith (clojure.core/or va prefix))))
-                             clojure.core/sort))))
+  (list '->>
+        prefix
+        'compliment.core/completions
+        '(clojure.core/map :candidate)))
 
 (defn cmd-doc [word]
   (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
