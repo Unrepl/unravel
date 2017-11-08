@@ -62,4 +62,4 @@
           (when (:debug? opts)
             (reset! ul/debug? true))
           (init)
-          (uo/start host port))))))
+          (uo/start host port opts))))))
