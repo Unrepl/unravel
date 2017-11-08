@@ -29,9 +29,37 @@
 
 (defn init [])
 
+(defn parse-args [args]
+  (loop [m {}
+         [arg nxt :as args] args]
+    (cond
+      (nil? arg)
+      m
+
+      (= "--debug" arg)
+      (recur (assoc m :debug? true) (rest args))
+
+      (= "--version" arg)
+      (recur (assoc m :version? true) (rest args))
+
+      (= "--blob" arg)
+      (do
+        (assert (some? nxt) "Needs parameter")
+        (recur (assoc m :blob nxt) (rest (rest args))))
+
+      :else
+      (recur (update m :positional (fn [ps] (conj (or ps []) arg)))
+             (rest args)))))
+
 (defn -main [& more]
-  (init)
-  (let [[host port :as args] (parse more)]
-    (when-not (= 2 (count args))
-      (fail "Syntax: unravel [--debug] <host> <port>\n        unravel --version"))
-    (uo/start host port)))
+  (let [opts (parse-args more)]
+    (if (:version? opts)
+      (print-version!)
+      (do
+        (when-not (= 2 (count (:positional opts)))
+          (fail "Syntax: unravel [--debug] <host> <port>\n        unravel --version"))
+        (let [[host port] (:positional opts)]
+          (when (:debug? opts)
+            (reset! ul/debug? true))
+          (init)
+          (uo/start host port))))))
