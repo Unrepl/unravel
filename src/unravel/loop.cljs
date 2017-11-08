@@ -136,17 +136,15 @@ interpreted by the REPL client. The following specials are available:
       (send-command ctx (str cmd))
       (.prompt rl))))
 
-(defn connect [conn host port full? terminating?]
+(defn connect [conn host port blob terminating?]
   (-> (doto conn
         (.connect port
                   host
                   (fn []
                     (when-not @terminating?
                       (.setNoDelay conn true)
-                      (ud/dbug :connect full?)
-                      (.write conn (if full?
-                                     (str (read-payload) "\n" start-cmd "\n")
-                                     start-cmd))
+                      (ud/dbug :connect (count blob))
+                      (.write conn blob)
                       (.write conn "\n"))))
         (.on "error" (fn [err]
                        (println "Socket error:" (pr-str err))
@@ -250,12 +248,12 @@ interpreted by the REPL client. The following specials are available:
         ostream js/process.stdout
         terminating? (atom false)
         conn-out (.Socket. un/net)
-        conn-in (connect conn-out host port true terminating?)]
+        conn-in (connect conn-out host port (read-payload) terminating?)]
     (.on conn-in
          "started"
-         (fn [session-info]
+         (fn [{:as session-info {:keys [start-aux]} :actions}]
            (let [aux-out (.Socket. un/net)
-                 aux-in (connect aux-out host port true terminating?)
+                 aux-in (connect aux-out host port (pr-str start-aux) terminating?)
                  completer-fn (atom nil)]
              (ud/dbug :main-connection-ready)
              (.on aux-in
