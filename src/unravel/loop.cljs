@@ -253,7 +253,7 @@ interpreted by the REPL client. The following specials are available:
         conn-in (connect conn-out host port true terminating?)]
     (.on conn-in
          "started"
-         (fn []
+         (fn [session-info]
            (let [aux-out (.Socket. un/net)
                  aux-in (connect aux-out host port true terminating?)
                  completer-fn (atom nil)]
@@ -275,6 +275,7 @@ interpreted by the REPL client. The following specials are available:
                                           :next (fn [rl]
                                                   (let [ctx {:istream istream
                                                              :ostream ostream
+                                                             :session-info session-info
                                                              :callbacks (atom {})
                                                              :pending-eval (atom nil)
                                                              :conn-in conn-in
