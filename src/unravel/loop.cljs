@@ -169,6 +169,12 @@ interpreted by the REPL client. The following specials are available:
 (defn cut [s n]
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
 
+(defn to-string [v]
+  (cond
+    (string? v) v
+    (.-form v) (-> v .-form first)
+    :else (str v)))
+
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
     (when (plausible-symbol? word)
@@ -193,7 +199,7 @@ interpreted by the REPL client. The following specials are available:
                          (let [[result more] r]
                            (when result
                              (let [pos (._getCursorPos rl)
-                                   lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                   lines (clojure.string/split-lines (cond-> (clojure.string/trimr (to-string result))
                                                                        more
                                                                        (str "...")))]
                                (println)
