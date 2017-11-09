@@ -136,21 +136,27 @@ interpreted by the REPL client. The following specials are available:
       (send-command ctx (str cmd))
       (.prompt rl))))
 
-(defn connect [conn host port blob terminating?]
-  (-> (doto conn
-        (.connect port
-                  host
-                  (fn []
-                    (when-not @terminating?
-                      (.setNoDelay conn true)
-                      (ud/dbug :connect (count blob))
-                      (.write conn blob)
-                      (.write conn "\n"))))
-        (.on "error" (fn [err]
-                       (println "Socket error:" (pr-str err))
-                       (js/process.exit 1))))
-      (.pipe (uw/make-skip "[:unrepl/hello"))
-      (.pipe (uw/make-edn-stream))))
+(defn socket-connector
+  "Returns a function from blob (as string) and terminating? (an boolean atom)
+   to streams pairs (as a map with keys :chars-out and :edn-in)."
+  [host port]
+  (fn connect [blob terminating?]
+    (let [conn (.Socket. un/net)]
+      {:chars-out conn
+       :edn-in (-> (doto conn
+                     (.connect port
+                       host
+                       (fn []
+                         (when-not @terminating?
+                           (.setNoDelay conn true)
+                           (ud/dbug :connect (count blob))
+                           (.write conn blob)
+                           (.write conn "\n"))))
+                   (.on "error" (fn [err]
+                                  (println "Socket error:" (pr-str err))
+                                  (js/process.exit 1))))
+                 (.pipe (uw/make-skip "[:unrepl/hello"))
+                 (.pipe (uw/make-edn-stream)))})))
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
   (let [eval-id (str (gensym))
@@ -247,13 +253,13 @@ interpreted by the REPL client. The following specials are available:
   (let [istream js/process.stdin
         ostream js/process.stdout
         terminating? (atom false)
+        connect (socket-connector host port)
         conn-out (.Socket. un/net)
-        conn-in (connect conn-out host port (read-payload) terminating?)]
+        {conn-in :edn-in conn-out :chars-out} (connect (read-payload) terminating?)]
     (.on conn-in
          "started"
-         (fn [{:as session-info {:keys [start-aux]} :actions}]
-           (let [aux-out (.Socket. un/net)
-                 aux-in (connect aux-out host port (pr-str start-aux) terminating?)
+         (fn [{:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions}]
+           (let [{aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) terminating?)
                  completer-fn (atom nil)]
              (ud/dbug :main-connection-ready)
              (.on aux-in
