@@ -131,9 +131,6 @@ interpreted by the REPL client. The following specials are available:
       (help)
       (.prompt rl))
     
-    (or (= "exit" cmd))
-    (js/process.exit 0)
-
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
     (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
       (send-command ctx (str cmd))
