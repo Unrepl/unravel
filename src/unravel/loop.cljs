@@ -288,7 +288,6 @@ interpreted by the REPL client. The following specials are available:
     #js{:input js/process.stdin
         :output js/process.stdout
         :path (un/join-path (un/os-homedir) ".unravel" "history")
-        :prompt (or (some-> ctx :state deref :ns str) "=>")
         :maxLength 1000
         :completer (fn [line cb] (sm :readline [:complete [line cb]]))
         :next (fn [rl] (sm :readline [:ready rl]))})
