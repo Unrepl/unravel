@@ -48,8 +48,7 @@
                             (when (and (vector? v) (= :bye (first v)))
                               (reset! done? true))
                             (when (and (not @ready?) (vector? v) (= :unrepl/hello (first v)))
-                              (reset! ready? true)
-                              (.emit this "started" (second v)))
+                              (reset! ready? true))
                             (.push this v)
                             (.clear buf)
                             (when rst
