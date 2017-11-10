@@ -47,14 +47,12 @@
     (.prompt rl true))
   ctx)
 
-(defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval] :as ctx}]
-  (reset! pending-eval nil)
+(defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (ut/cyan #(prn result))
-  ctx)
+  (assoc ctx :pending-eval nil))
 
-(defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ {:keys [rl pending-eval] :as ctx}]
-  (reset! pending-eval {:action actions})
-  ctx)
+(defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ ctx]
+  (assoc ctx :pending-eval {:action actions}))
 
 (defmethod process [:aux :eval] [[_ result counter] _ {:keys [rl callbacks] :as ctx}]
   (when (and (vector? result) (= :unravel/rpc (first result)))
@@ -63,10 +61,9 @@
         (f v))))
   ctx)
 
-(defmethod process [:conn :exception] [[_ e] _ {:keys [rl pending-eval] :as ctx}]
-  (reset! pending-eval nil)
+(defmethod process [:conn :exception] [[_ e] _ ctx]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e))))))
-  ctx)
+  (assoc ctx :pending-eval nil))
 
 (defmethod process [:conn :out] [[_ s] _ {:keys [rl] :as ctx}]
   (.write js/process.stdout s)
@@ -225,8 +222,8 @@ interpreted by the REPL client. The following specials are available:
                    (show-doc ctx false)))))
 
 (defn interrupt [{:keys [rl pending-eval] :as ctx}]
-  (if @pending-eval
-    (some->> @pending-eval :action :interrupt pr-str (send-aux-command ctx))
+  (if pending-eval
+    (some->> pending-eval :action :interrupt pr-str (send-aux-command ctx))
     (do
       (println)
       (when (ut/rich?)
@@ -277,7 +274,7 @@ interpreted by the REPL client. The following specials are available:
              :ostream js/process.stdout
              :terminating? (atom false)
              :callbacks (atom {})
-             :pending-eval (atom nil)
+             :pending-eval nil
              :state (atom {})
              :pending-msgs []}
         conn-out (.Socket. un/net)
