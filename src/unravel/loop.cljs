@@ -1,6 +1,7 @@
 (ns unravel.loop
   (:require [clojure.string]
             [clojure.pprint :refer [pprint]]
+            [clojure.walk]
             [lumo.core]
             [lumo.io :refer [slurp]]
             [cljs.reader :refer [read-string]]
@@ -174,40 +175,40 @@ interpreted by the REPL client. The following specials are available:
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
 
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
-  #_(when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
-     (when (plausible-symbol? word)
-       (when (or (not= word (:word @state)) full?)
-         (swap! state assoc :word word)
-         (call-remote ctx
-                      (if full?
-                        (list '->>
-                              (list 'clojure.repl/doc (symbol word))
-                              'with-out-str)
-                        (list '->> (list 'clojure.repl/doc (symbol word))
-                              'with-out-str
-                              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                              'rest))
-                      (fn [r]
-                        (if full?
-                          (do
-                            (println)
-                            (.clearScreenDown ostream)
-                            (println r)
-                            (.prompt rl true))
-                          (let [[result more] r]
-                            (when result
-                              (let [pos (._getCursorPos rl)
-                                    lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
-                                                                        more
-                                                                        (str "...")))]
-                                (println)
-                                (doseq [line lines]
-                                  (.clearLine ostream)
-                                  (println (cut line 70)))
-                                (.moveCursor (js/require "readline")
-                                             (.-output rl)
-                                             (.-cols pos)
-                                             (- (+ (count lines) 1)))))))))))))
+  (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
+    (when (plausible-symbol? word)
+      (when (or (not= word (:word @state)) full?)
+        (swap! state assoc :word word)
+        (call-remote ctx
+                     (if full?
+                       (list '->>
+                             (list 'clojure.repl/doc (symbol word))
+                             'with-out-str)
+                       (list '->> (list 'clojure.repl/doc (symbol word))
+                             'with-out-str
+                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                             'rest))
+                     (fn [r]
+                       (if full?
+                         (do
+                           (println)
+                           (.clearScreenDown ostream)
+                           (println r)
+                           (.prompt rl true))
+                         (let [[result more] r]
+                           (when result
+                             (let [pos (._getCursorPos rl)
+                                   lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                                                       more
+                                                                       (str "...")))]
+                               (println)
+                               (doseq [line lines]
+                                 (.clearLine ostream)
+                                 (println (cut line 70)))
+                               (.moveCursor (js/require "readline")
+                                            (.-output rl)
+                                            (.-cols pos)
+                                            (- (+ (count lines) 1)))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -277,9 +278,17 @@ interpreted by the REPL client. The following specials are available:
     (.on aux-in "data" (fn [msg] (sm :aux msg)))
     (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
 
+(defn invoke [template params]
+  (pr-str
+    (clojure.walk/postwalk
+      (fn [x]
+        (if (and (tagged-literal? x) (= (:tag x) 'unrepl/param))
+          (get params (:form x))
+          x))
+      template)))
+
 (defmethod process [:aux :unrepl/hello]
-  [[_ {:as aux-session-info {:keys []} :actions}] _ {:keys [sm] :as ctx}]
-  ; TODO change string-length
+  [[_ {:as aux-session-info {:keys [print-limits]} :actions}] _ {:keys [sm aux-out] :as ctx}]
   (ud/dbug :aux-connection-ready)
   (.createInterface un/readline
     #js{:input js/process.stdin
@@ -288,12 +297,14 @@ interpreted by the REPL client. The following specials are available:
         :maxLength 1000
         :completer (fn [line cb] (sm :readline [:complete [line cb]]))
         :next (fn [rl] (sm :readline [:ready rl]))})
+  (ud/dbug :aux-set-limits)
+  (uw/send! aux-out (invoke print-limits {:unrepl.print/string-length 0xFFFFffff}))
   ctx)
 
 (defmethod process [:readline :complete]
   [[_ [line cb]] _ ctx]
-  (when-some [f (:completer-fn ctx)]
-    (f line cb))
+  (when-some [completer (:completer-fn ctx)]
+    (completer ctx line cb))
   ctx)
 
 (defmethod process [:readline :interrupt]
@@ -302,7 +313,7 @@ interpreted by the REPL client. The following specials are available:
 
 (defmethod process[:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
-  (let [ctx (assoc ctx :rl rl #_#_:completer-fn (partial complete ctx))]
+  (let [ctx (assoc ctx :rl rl :completer-fn complete)]
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
@@ -312,7 +323,7 @@ interpreted by the REPL client. The following specials are available:
       (.on "SIGINT" #(sm :readline [:interrupt])))
     (doto (:istream ctx)
       (.on "error" #(.exit js/process 143))
-      (.on "keypress" (fn [chunk key]) (sm :readline [:keypress [chunk key]])))
+      (.on "keypress" (fn [chunk key] (sm :readline [:keypress [chunk key]]))))
     ctx))
 
 (defmethod process [:readline :line]
