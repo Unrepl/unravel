@@ -25,17 +25,17 @@
   (when-not @terminating?
     (uw/send! (:conn-out ctx) s)))
 
-(defn send-aux-command [{:keys [terminating?] :as ctx} s]
-  (when-not @terminating?
-    (uw/send! (:aux-out ctx) s)))
+(defn send-aux-command [{:keys [terminating? aux-out] :as ctx} s]
+  (when-not (or @terminating? (nil? aux-out))
+    (uw/send! aux-out s)))
 
 (defn set-prompt [{:keys [rl state]} ns warn?]
-  (.setPrompt rl (if (ut/interactive?)
-                   (str (or ns (:ns @state))
-                        (when warn? "\33[31m")
-                        "=> "
-                        (when warn? "\33[0m"))
-                   "")))
+  (some-> rl (.setPrompt (if (ut/interactive?)
+                           (str (or ns (:ns @state))
+                                (when warn? "\33[31m")
+                                "=> "
+                                (when warn? "\33[0m"))
+                           ""))))
 
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
@@ -44,7 +44,7 @@
     (when ns
       (swap! state assoc :ns ns)
       (set-prompt ctx ns false))
-    (.prompt rl true))
+    (some-> rl (.prompt true)))
   ctx)
 
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
@@ -130,6 +130,9 @@ interpreted by the REPL client. The following specials are available:
     (do
       (help)
       (.prompt rl))
+    
+    (or (= "exit" cmd))
+    (js/process.exit 0)
 
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
     (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
@@ -268,91 +271,102 @@ interpreted by the REPL client. The following specials are available:
     (vswap! state assoc :sm sm)
     sm))
 
+(defmethod process [:conn :unrepl/hello]
+  [[_ {:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions}] _ {:keys [sm connect banner] :as ctx}]
+  (let [{aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))
+        #_#_{loader-in :edn-in aux-out :loader-out} (connect (pr-str start-side-loader) (:terminating? ctx))]
+    (ud/dbug :main-connection-ready)
+    (when (ut/interactive?) (banner))
+    (.on aux-in "data" (fn [msg] (sm :aux msg)))
+    (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
+
+(defmethod process [:aux :unrepl/hello]
+  [[_ {:as aux-session-info {:keys []} :actions}] _ {:keys [sm] :as ctx}]
+  ; TODO change string-length
+  (ud/dbug :aux-connection-ready)
+  (.createInterface un/readline
+    #js{:input js/process.stdin
+        :output js/process.stdout
+        :path (un/join-path (un/os-homedir) ".unravel" "history")
+        :prompt (or (some-> ctx :state deref :ns str) "=>")
+        :maxLength 1000
+        :completer (fn [line cb] (sm :readline [:complete [line cb]]))
+        :next (fn [rl] (sm :readline [:ready rl]))})
+  ctx)
+
+(defmethod process [:readline :complete]
+  [[_ [line cb]] _ ctx]
+  (when-some [f (:completer-fn ctx)]
+    (f line cb))
+  ctx)
+
+(defmethod process [:readline :interrupt]
+  [_ _ ctx]
+  (interrupt ctx))
+
+(defmethod process[:readline :ready]
+  [[_ rl] _ {:keys [sm connect] :as ctx}]
+  (let [ctx (assoc ctx :rl rl #_#_:completer-fn (partial complete ctx))]
+    (when-some [ns (some-> ctx :state deref :ns)]
+      (set-prompt ctx ns false)
+      (.prompt rl))
+    (doto rl
+      (.on "line" #(sm :readline [:line %]))
+      (.on "close" #(sm :readline [:close]))
+      (.on "SIGINT" #(sm :readline [:interrupt])))
+    (doto (:istream ctx)
+      (.on "error" #(.exit js/process 143))
+      (.on "keypress" (fn [chunk key]) (sm :readline [:keypress [chunk key]])))
+    ctx))
+
+(defmethod process [:readline :line]
+  [[_ line] _ ctx]
+  (when (ut/rich?)
+    (doto (:ostream ctx) .clearLine .clearScreenDown))
+  (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+    (special ctx cmd)
+    (send-command ctx line))
+  ctx)
+
+(defmethod process [:readline :keypress]
+  [[_ [chunk key]] _ ctx]
+  (cond
+    (and (.-ctrl key) (= "o" (.-name key)))
+    (do
+      #_(check-readable ctx true)
+      (show-doc ctx true))
+    :else
+    (do
+      (check-readable ctx false)
+      (show-doc ctx false)))
+    ctx)
+
+(defmethod process [:readline :close]
+  [_ _ ctx]
+  (when (ut/rich?)
+    (println))
+  (reset! (:terminating? ctx) true)
+  (ud/dbug :end "conn-out")
+  (some-> ctx :conn-out .end)
+  (some-> ctx :aux-out .end)
+  ctx)
+
 (defn start [host port]
   (let [connect (socket-connector host port)
-        ctx {:istream js/process.stdin
-             :ostream js/process.stdout
-             :terminating? (atom false)
-             :callbacks (atom {})
-             :pending-eval nil
-             :state (atom {})
-             :pending-msgs []}
-        conn-out (.Socket. un/net)
-        {conn-in :edn-in conn-out :chars-out} (connect (read-payload) (:terminating? ctx))
-        sm (state-machine (into ctx {:conn-in conn-in :conn-out conn-out})
-             (fn self [{:keys [sm] :as ctx} origin  [tag payload group-id :as msg]]
-               (ud/dbug :dispatch [origin tag])
-               (ud/dbug :keys (sort (keys ctx)))
-               ; at some point this case and process should merge
-               (case [origin tag]
-                 
-                 [:conn :unrepl/hello]
-                 (let [{:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions} payload
-                       {aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))
-                       #_#_{loader-in :edn-in aux-out :loader-out} (connect (pr-str start-side-loader) (:terminating? ctx))]
-                   (ud/dbug :main-connection-ready)
-                   (.on aux-in "data" (fn [msg] (sm :aux msg)))
-                   (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out}))
-                 
-                 [:aux :unrepl/hello]
-                 (let [{:as aux-session-info {:keys []} :actions} payload]
-                   ; TODO change string-length
-                   (ud/dbug :aux-connection-ready)
-                   (when (ut/interactive?)
-                     (banner host port))
-                   (.createInterface un/readline
-                     #js{:input (:istream ctx)
-                         :output (:ostream ctx)
-                         :path (un/join-path (un/os-homedir) ".unravel" "history")
-                         :maxLength 1000
-                         :completer (fn [line cb]
-                                      (when-let [f (:completer-fn ctx)]
-                                        (f line cb)))
-                         :next (fn [rl] (sm :readline [:ready rl]))})
-                   ctx)
-                 
-                 [:readline :ready]
-                 (let [rl payload
-                       ctx (reduce (fn [ctx [origin msg]] (self ctx origin msg))
-                             (assoc ctx :rl rl :pending-msgs [] #_#_:completer-fn (partial complete ctx))
-                             (:pending-msgs ctx))]
-                   (doto rl
-                     (.on "line" (fn [line]
-                                   (when (ut/rich?)
-                                     (doto (:ostream ctx) .clearLine .clearScreenDown))
-                                   (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
-                                     (special ctx cmd)
-                                     (send-command ctx line))))
-                     (.on "close" (fn []
-                                    (when (ut/rich?)
-                                      (println))
-                                    (reset! (:terminating? ctx) true)
-                                    (ud/dbug :end "conn-out")
-                                    (.end (:conn-out ctx))
-                                    (.end (:aux-out ctx))))
-                     (.on "SIGINT" #(interrupt ctx)))
-                   (doto (:istream ctx)
-                     (.on "error" #(.exit js/process 143))
-                     (.on "keypress"
-                       (fn [chunk key]
-                         (cond
-                           (and (.-ctrl key) (= "o" (.-name key)))
-                           (do
-                             #_(check-readable ctx true)
-                             (show-doc ctx true))
-                           :else
-                           (do
-                             (check-readable ctx false)
-                             (show-doc ctx false))))))
-                   ctx)
-                 
-                 ;default
-                 (do
-                   (if (:rl ctx)
-                     (do
-                       (ud/dbug :receive {:origin origin} msg)
-                       (process msg origin ctx))
-                     (do
-                       (ud/dbug :rl-not-yet-initialized origin msg)
-                       (update ctx :pending-msgs conj [origin msg])))))))]
-    (.on conn-in "data" (fn [msg] (sm :conn msg)))))
+        terminating? (atom false)
+        {conn-in :edn-in conn-out :chars-out} (connect (read-payload) terminating?)
+        sm
+        (state-machine {:istream js/process.stdin
+                        :ostream js/process.stdout
+                        :conn-in conn-in
+                        :conn-out conn-out
+                        :terminating? terminating?
+                        :callbacks (atom {})
+                        :pending-eval nil
+                        :state (atom {})
+                        :connect connect
+                        :banner #(banner host port)}
+          (fn [ctx origin msg]
+            (ud/dbug :receive {:origin origin} msg)
+            (process msg origin ctx)))]
+    (.on conn-in "data" #(sm :conn %))))
