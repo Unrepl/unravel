@@ -44,30 +44,37 @@
     (when ns
       (swap! state assoc :ns ns)
       (set-prompt ctx ns false))
-    (.prompt rl true)))
+    (.prompt rl true))
+  ctx)
 
-(defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval]}]
+(defmethod process [:conn :eval] [[_ result counter] _ {:keys [rl pending-eval] :as ctx}]
   (reset! pending-eval nil)
-  (ut/cyan #(prn result)))
+  (ut/cyan #(prn result))
+  ctx)
 
-(defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ {:keys [rl pending-eval]}]
-  (reset! pending-eval {:action actions}))
+(defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ {:keys [rl pending-eval] :as ctx}]
+  (reset! pending-eval {:action actions})
+  ctx)
 
-(defmethod process [:aux :eval] [[_ result counter] _ {:keys [rl callbacks]}]
+(defmethod process [:aux :eval] [[_ result counter] _ {:keys [rl callbacks] :as ctx}]
   (when (and (vector? result) (= :unravel/rpc (first result)))
     (let [[_ eval-id v] result]
       (when-let [f (-> @callbacks (get eval-id))]
-        (f v)))))
+        (f v))))
+  ctx)
 
-(defmethod process [:conn :exception] [[_ e] _ {:keys [rl pending-eval]}]
+(defmethod process [:conn :exception] [[_ e] _ {:keys [rl pending-eval] :as ctx}]
   (reset! pending-eval nil)
-  (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
+  (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e))))))
+  ctx)
 
-(defmethod process [:conn :out] [[_ s] _ {:keys [rl]}]
-  (.write js/process.stdout s))
+(defmethod process [:conn :out] [[_ s] _ {:keys [rl] :as ctx}]
+  (.write js/process.stdout s)
+  ctx)
 
-(defmethod process :default [command]
-  (ud/dbug :unknown-command command))
+(defmethod process :default [command _ ctx]
+  (ud/dbug :unknown-command command)
+  ctx)
 
 ;; use qualified symbols in case code is invoked
 ;; after calling (in-ns 'invalid-ns)
@@ -347,8 +354,7 @@ interpreted by the REPL client. The following specials are available:
                    (if (:rl ctx)
                      (do
                        (ud/dbug :receive {:origin origin} msg)
-                       (process msg origin ctx)
-                       ctx)
+                       (process msg origin ctx))
                      (do
                        (ud/dbug :rl-not-yet-initialized origin msg)
                        (update ctx :pending-msgs conj [origin msg])))))))]
