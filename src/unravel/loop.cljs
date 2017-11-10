@@ -136,7 +136,7 @@ interpreted by the REPL client. The following specials are available:
   "Returns a function from blob (as string) and terminating? (an boolean atom)
    to streams pairs (as a map with keys :chars-out and :edn-in)."
   [host port]
-  (fn connect ([blob terminating?]
+  (fn connect [blob terminating?]
     (let [conn (.Socket. un/net)]
       {:chars-out conn
        :edn-in (-> (doto conn
@@ -148,11 +148,11 @@ interpreted by the REPL client. The following specials are available:
                            (ud/dbug :connect (count blob))
                            (.write conn blob)
                            (.write conn "\n"))))
-                   (.on "error" (fn [err]
-                                  (println "Socket error:" (pr-str err))
-                                  (js/process.exit 1))))
+                     (.on "error" (fn [err]
+                                    (println "Socket error:" (pr-str err))
+                                    (js/process.exit 1))))
                  (.pipe (uw/make-skip "[:unrepl/hello"))
-                 (.pipe (uw/make-edn-stream)))}))))
+                 (.pipe (uw/make-edn-stream)))})))
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
   (let [eval-id (str (gensym))
@@ -271,24 +271,25 @@ interpreted by the REPL client. The following specials are available:
              :terminating? (atom false)
              :callbacks (atom {})
              :pending-eval (atom nil)
-             :state (atom {})}
+             :state (atom {})
+             :pending-msgs []}
         conn-out (.Socket. un/net)
         {conn-in :edn-in conn-out :chars-out} (connect (read-payload) (:terminating? ctx))
-        sm (state-machine {:ctx (into ctx {:conn-in conn-in :conn-out conn-out})
-                           :pending []}
-             (fn self [{:keys [ctx sm] :as state} origin  [tag payload group-id :as msg]]
+        sm (state-machine (into ctx {:conn-in conn-in :conn-out conn-out})
+             (fn self [{:keys [sm] :as ctx} origin  [tag payload group-id :as msg]]
                (ud/dbug :dispatch [origin tag])
+               (ud/dbug :keys (sort (keys ctx)))
                ; at some point this case and process should merge
                (case [origin tag]
+                 
                  [:conn :unrepl/hello]
                  (let [{:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions} payload
                        {aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))
                        #_#_{loader-in :edn-in aux-out :loader-out} (connect (pr-str start-side-loader) (:terminating? ctx))]
                    (ud/dbug :main-connection-ready)
                    (.on aux-in "data" (fn [msg] (sm :aux msg)))
-                   (-> state
-                     (assoc :session-info session-info)
-                     (update :ctx into {:aux-in aux-in :aux-out aux-out})))
+                   (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out}))
+                 
                  [:aux :unrepl/hello]
                  (let [{:as aux-session-info {:keys []} :actions} payload]
                    ; TODO change string-length
@@ -301,16 +302,16 @@ interpreted by the REPL client. The following specials are available:
                          :path (un/join-path (un/os-homedir) ".unravel" "history")
                          :maxLength 1000
                          :completer (fn [line cb]
-                                      (when-let [f (:completer-fn state)]
+                                      (when-let [f (:completer-fn ctx)]
                                         (f line cb)))
                          :next (fn [rl] (sm :readline [:ready rl]))})
-                   state)
+                   ctx)
+                 
                  [:readline :ready]
                  (let [rl payload
-                       state (reduce (fn [state [origin msg]] (self state origin msg))
-                               (-> state (update :ctx assoc :rl rl) (assoc :pending [] #_#_:completer-fn (partial complete ctx)))
-                               (:pending state))
-                       ctx (:ctx state)]
+                       ctx (reduce (fn [ctx [origin msg]] (self ctx origin msg))
+                             (assoc ctx :rl rl :pending-msgs [] #_#_:completer-fn (partial complete ctx))
+                             (:pending-msgs ctx))]
                    (doto rl
                      (.on "line" (fn [line]
                                    (when (ut/rich?)
@@ -339,15 +340,16 @@ interpreted by the REPL client. The following specials are available:
                            (do
                              (check-readable ctx false)
                              (show-doc ctx false))))))
-                   state)
+                   ctx)
+                 
                  ;default
                  (do
                    (if (:rl ctx)
                      (do
-                       (ud/dbug :receive {:origin origin} command)
+                       (ud/dbug :receive {:origin origin} msg)
                        (process msg origin ctx)
-                       state)
+                       ctx)
                      (do
                        (ud/dbug :rl-not-yet-initialized origin msg)
-                       (update state :pending conj [origin msg])))))))]
+                       (update ctx :pending-msgs conj [origin msg])))))))]
     (.on conn-in "data" (fn [msg] (sm :conn msg)))))
