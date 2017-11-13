@@ -141,23 +141,26 @@ interpreted by the REPL client. The following specials are available:
   "Returns a function from blob (as string) and terminating? (an boolean atom)
    to streams pairs (as a map with keys :chars-out and :edn-in)."
   [host port]
-  (fn connect [blob terminating?]
-    (let [conn (.Socket. un/net)]
-      {:chars-out conn
-       :edn-in (-> (doto conn
-                     (.connect port
-                       host
-                       (fn []
-                         (when-not @terminating?
-                           (.setNoDelay conn true)
-                           (ud/dbug :connect (count blob))
-                           (.write conn blob)
-                           (.write conn "\n"))))
-                     (.on "error" (fn [err]
-                                    (println "Socket error:" (pr-str err))
-                                    (js/process.exit 1))))
-                 (.pipe (uw/make-skip "[:unrepl/hello"))
-                 (.pipe (uw/make-edn-stream)))})))
+  (fn connect
+    ([blob terminating?]
+      (connect blob terminating? "[:unrepl/hello"))
+    ([blob terminating? sync-string]
+      (let [conn (.Socket. un/net)]
+        {:chars-out conn
+         :edn-in (-> (doto conn
+                       (.connect port
+                         host
+                         (fn []
+                           (when-not @terminating?
+                             (.setNoDelay conn true)
+                             (ud/dbug :connect (count blob))
+                             (.write conn blob)
+                             (.write conn "\n"))))
+                       (.on "error" (fn [err]
+                                      (println "Socket error:" (pr-str err))
+                                      (js/process.exit 1))))
+                   (.pipe (uw/make-skip sync-string))
+                   (.pipe (uw/make-edn-stream)))}))))
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
   (let [eval-id (str (gensym))
@@ -272,10 +275,17 @@ interpreted by the REPL client. The following specials are available:
 (defmethod process [:conn :unrepl/hello]
   [[_ {:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions}] _ {:keys [sm connect banner] :as ctx}]
   (let [{aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))
-        #_#_{loader-in :edn-in aux-out :loader-out} (connect (pr-str start-side-loader) (:terminating? ctx))]
+        {loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
     (ud/dbug :main-connection-ready)
     (when (ut/interactive?) (banner))
     (.on aux-in "data" (fn [msg] (sm :aux msg)))
+    (.on loader-in "data" (fn [[tag payload :as msg]]
+                            (case tag
+                              (:resource :class)
+                              (do
+                                (ud/dbug :sideload msg)
+                                (.write loader-out "nil\n"))
+                              (ud/dbug :sideloader-ignoring msg))))
     (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
 
 (defn invoke [template params]
