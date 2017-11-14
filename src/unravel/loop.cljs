@@ -1,5 +1,5 @@
 (ns unravel.loop
-  (:require [clojure.string]
+  (:require [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [clojure.walk]
             [lumo.core]
@@ -201,7 +201,7 @@ interpreted by the REPL client. The following specials are available:
                          (let [[result more] r]
                            (when result
                              (let [pos (._getCursorPos rl)
-                                   lines (clojure.string/split-lines (cond-> (clojure.string/trimr result)
+                                   lines (str/split-lines (cond-> (str/trimr result)
                                                                        more
                                                                        (str "...")))]
                                (println)
@@ -232,26 +232,27 @@ interpreted by the REPL client. The following specials are available:
       (println)
       (when (ut/rich?)
         (.clearLine rl))
-      (.prompt rl false))))
+      (.prompt rl false)))
+  ctx)
 
 (defn check-readable-cmd [s]
-  (list '(fn [s] (when-not (clojure.string/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
+  (list '(fn [s] (when-not (str/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
 
 (defn check-readable [{:keys [rl state ostream] :as ctx} full?]
   (call-remote ctx
-               (check-readable-cmd (.-line rl))
-               (fn [ex-str]
-                 (if full?
-                   (when ex-str
-                     (println)
-                     (.clearScreenDown ostream)
-                     (ut/red #(println "Cannot read:" ex-str))
-                     (.prompt rl true))
-                   (let [warn? (boolean ex-str)]
-                     (when (not= warn? (boolean (:warn? @state)))
-                       (swap! state assoc :warn? warn?)
-                       (set-prompt ctx nil warn?)
-                       (.prompt rl true)))))))
+    (check-readable-cmd (.-line rl))
+    (fn [ex-str]
+      (if full?
+        (when ex-str
+          (println)
+          (.clearScreenDown ostream)
+          (ut/red #(println "Cannot read:" ex-str))
+          (.prompt rl true))
+        (let [warn? (boolean ex-str)]
+          (when (not= warn? (boolean (:warn? @state)))
+            (swap! state assoc :warn? warn?)
+            (set-prompt ctx nil warn?)
+            (.prompt rl true)))))))
 
 (defn- state-machine [state-map rf]
   (let [state (volatile! state-map)
@@ -273,19 +274,29 @@ interpreted by the REPL client. The following specials are available:
     sm))
 
 (defmethod process [:conn :unrepl/hello]
-  [[_ {:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions}] _ {:keys [sm connect banner] :as ctx}]
-  (let [{aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))
-        {loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
+  [[_ {:as session-info {:keys [start-aux :unrepl.jvm/start-side-loader]} :actions}] _ {:keys [sm connect banner] {:keys [cp]} :options :as ctx}]
+  (let [{aux-in :edn-in aux-out :chars-out} (connect (pr-str start-aux) (:terminating? ctx))]
     (ud/dbug :main-connection-ready)
     (when (ut/interactive?) (banner))
     (.on aux-in "data" (fn [msg] (sm :aux msg)))
-    (.on loader-in "data" (fn [[tag payload :as msg]]
-                            (case tag
-                              (:resource :class)
-                              (do
-                                (ud/dbug :sideload msg)
-                                (.write loader-out "nil\n"))
-                              (ud/dbug :sideloader-ignoring msg))))
+    (when (seq cp)
+      (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
+        (.on loader-in "data"
+          (fn [[tag payload :as msg]]
+            (case tag
+              (:class :resource)
+              (let [file (str "/" (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))]
+                (.write loader-out
+                  (prn-str (some-> (some
+                                     (fn [path]
+                                       (try
+                                         (.readFileSync un/fs (un/join-path path file))
+                                         (catch :default _)))
+                                     cp)
+                             (.toString "base64")))))
+              (do
+                (prn :sideloader-ignoring msg)
+                (ud/dbug :sideloader-ignoring msg)))))))
     (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
 
 (defn invoke [template params]
@@ -374,7 +385,7 @@ interpreted by the REPL client. The following specials are available:
   (some-> ctx :aux-out .end)
   ctx)
 
-(defn start [host port]
+(defn start [host port options]
   (let [connect (socket-connector host port)
         terminating? (atom false)
         {conn-in :edn-in conn-out :chars-out} (connect (read-payload) terminating?)
@@ -389,6 +400,7 @@ interpreted by the REPL client. The following specials are available:
                         :state (atom {})
                         :connect connect
                         :banner #(banner host port)
+                        :options options
                         :last-keypress (current-time-micros)}
           (fn [ctx origin msg]
             (ud/dbug :receive {:origin origin} msg)

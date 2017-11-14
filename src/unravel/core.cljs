@@ -1,9 +1,10 @@
 (ns unravel.core
-  (:require [clojure.string]
+  (:require [clojure.string :as str]
             [clojure.spec.alpha :as spec]
             [unravel.log :as ul]
             [unravel.version :as uv]
-            [unravel.loop :as uo])
+            [unravel.loop :as uo]
+            [unravel.node :as un])
   (:import [goog.string StringBuffer]))
 
 (defn fail [message]
@@ -18,7 +19,7 @@
 
 (spec/def ::cmdline-args
   (spec/cat
-    :options (spec/* (spec/alt :version #{"--version"} :debug #{"--debug"} :cp (spec/& (spec/cat :_ #{"--classpath" "-cp"} :path string?) :path)))
+    :options (spec/* (spec/alt :version #{"--version"} :debug #{"--debug"} :cp (spec/& (spec/cat :_ #{"--classpath" "-cp"} :path string?) (spec/conformer #(:path %)))))
     :host (spec/? string?) :port (spec/and string? #(re-matches #"\d+" %))))
 
 (defn -main [& more]
@@ -27,7 +28,7 @@
         (into {} (doto (spec/conform ::cmdline-args more)
                    (some-> #{::spec/invalid}
                      (when (fail "Syntax: unravel [--debug] [-cp|--classpath <paths>] [<host>] <port>\n        unravel --version")))))
-        {:keys [cp version debug]} (transduce (map (fn [[tag v]] {tag v})) (partial merge-with into) {} options)]
+        {:keys [cp version debug]} (transduce (map (fn [[tag v]] {tag [v]})) (partial merge-with into) {} options)]
     (when version (print-version!))
     (when debug (reset! ul/debug? true))
-    (uo/start (or host "localhost") port)))
+    (uo/start (or host "localhost") port {:cp (into [] (comp (mapcat #(str/split % (re-pattern (.-delimiter un/path)))) (distinct)) cp)})))
