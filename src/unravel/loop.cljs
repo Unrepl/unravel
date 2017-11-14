@@ -345,18 +345,24 @@ interpreted by the REPL client. The following specials are available:
     (send-command ctx line))
   ctx)
 
+(defn- current-time-micros []
+  (let [[secs nanos] (.hrtime js/process)]
+    (+ (* secs 1e6) (* nanos 1e-3))))
+
 (defmethod process [:readline :keypress]
   [[_ [chunk key]] _ ctx]
-  (cond
-    (and (.-ctrl key) (= "o" (.-name key)))
-    (do
-      #_(check-readable ctx true)
-      (show-doc ctx true))
-    :else
-    (do
-      (check-readable ctx false)
-      (show-doc ctx false)))
-    ctx)
+  (let [now (current-time-micros)
+        is-pasting (< (- now (:last-keypress ctx)) 10000)]
+    (cond
+      (and (.-ctrl key) (= "o" (.-name key)))
+      (do
+        #_(check-readable ctx true)
+        (show-doc ctx true))
+      :else
+      (when-not is-pasting
+        (check-readable ctx false)
+        (show-doc ctx false)))
+    (assoc ctx :last-keypress now)))
 
 (defmethod process [:readline :close]
   [_ _ ctx]
@@ -382,7 +388,8 @@ interpreted by the REPL client. The following specials are available:
                         :pending-eval nil
                         :state (atom {})
                         :connect connect
-                        :banner #(banner host port)}
+                        :banner #(banner host port)
+                        :last-keypress (current-time-micros)}
           (fn [ctx origin msg]
             (ud/dbug :receive {:origin origin} msg)
             (process msg origin ctx)))]
