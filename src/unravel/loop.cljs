@@ -294,9 +294,7 @@ interpreted by the REPL client. The following specials are available:
                                          (catch :default _)))
                                      cp)
                              (.toString "base64")))))
-              (do
-                (prn :sideloader-ignoring msg)
-                (ud/dbug :sideloader-ignoring msg)))))))
+              (ud/dbug :sideloader-ignoring msg))))))
     (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
 
 (defn invoke [template params]
