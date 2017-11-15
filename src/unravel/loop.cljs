@@ -234,6 +234,7 @@ interpreted by the REPL client. The following specials are available:
     (some->> pending-eval :action :interrupt pr-str (send-aux-command ctx))
     (do
       (println)
+      (ut/yellow #(println "^C interrupts current evaluation; use ^D to exit."))
       (when (ut/rich?)
         (.clearLine rl))
       (.prompt rl false)))
