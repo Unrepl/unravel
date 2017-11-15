@@ -70,6 +70,10 @@
   (.write js/process.stdout s)
   ctx)
 
+(defmethod process [:conn :err] [[_ s] _ {:keys [rl] :as ctx}]
+  (ut/yellow #(.write js/process.stdout s))
+  ctx)
+
 (defmethod process :default [command _ ctx]
   (ud/dbug :unknown-command command)
   ctx)
