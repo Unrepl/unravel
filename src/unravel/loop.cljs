@@ -279,23 +279,25 @@ interpreted by the REPL client. The following specials are available:
     (ud/dbug :main-connection-ready)
     (when (ut/interactive?) (banner))
     (.on aux-in "data" (fn [msg] (sm :aux msg)))
-    (when (seq cp)
-      (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
-        (.on loader-in "data"
-          (fn [[tag payload :as msg]]
-            (case tag
-              (:class :resource)
-              (let [file (str "/" (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))]
-                (.write loader-out
-                  (prn-str (some-> (some
-                                     (fn [path]
-                                       (try
-                                         (.readFileSync un/fs (un/join-path path file))
-                                         (catch :default _)))
-                                     cp)
-                             (.toString "base64")))))
-              (ud/dbug :sideloader-ignoring msg))))))
-    (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})))
+    (cond-> (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})
+      (seq cp)
+      (assoc :loader-out
+        (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
+          (.on loader-in "data"
+            (fn [[tag payload :as msg]]
+              (case tag
+                (:class :resource)
+                (let [file (str "/" (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))]
+                  (.write loader-out
+                    (prn-str (some-> (some
+                                       (fn [path]
+                                         (try
+                                           (.readFileSync un/fs (un/join-path path file))
+                                           (catch :default _)))
+                                       cp)
+                               (.toString "base64")))))
+                (ud/dbug :sideloader-ignoring msg))))
+          loader-out)))))
 
 (defn invoke [template params]
   (pr-str
@@ -378,9 +380,9 @@ interpreted by the REPL client. The following specials are available:
   (when (ut/rich?)
     (println))
   (reset! (:terminating? ctx) true)
-  (ud/dbug :end "conn-out")
   (some-> ctx :conn-out .end)
   (some-> ctx :aux-out .end)
+  (some-> ctx :loader-out .destroy) ; plain .end hangs
   ctx)
 
 (defn start [host port options]
