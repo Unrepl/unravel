@@ -47,9 +47,8 @@
                           (when-let [[v rst] (ul/safe-read-string (.toString buf))]
                             (when (and (vector? v) (= :bye (first v)))
                               (reset! done? true))
-                            (when-not @ready?
-                              (reset! ready? true)
-                              (.emit this "started"))
+                            (when (and (not @ready?) (vector? v) (= :unrepl/hello (first v)))
+                              (reset! ready? true))
                             (.push this v)
                             (.clear buf)
                             (when rst
