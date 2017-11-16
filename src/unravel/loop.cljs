@@ -292,15 +292,34 @@ interpreted by the REPL client. The following specials are available:
             (fn [[tag payload :as msg]]
               (case tag
                 (:class :resource)
-                (let [file (str "/" (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))]
-                  (.write loader-out
-                    (prn-str (some-> (some
-                                       (fn [path]
-                                         (try
-                                           (.readFileSync un/fs (un/join-path path file))
-                                           (catch :default _)))
-                                       cp)
-                               (.toString "base64")))))
+                (let [resource (str (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))
+                      file (str/replace resource "/" (.-sep un/path))
+                      lookup (fn lookup [cp]
+                               (if-some [[path & cp] (seq cp)]
+                                 (.stat un/fs path (fn [err stats]
+                                                     (cond
+                                                       err (lookup cp)
+                                                       
+                                                       ; directory entry on the classpath
+                                                       (.isDirectory stats)
+                                                       (.readFile un/fs (un/join-path path file)
+                                                         (fn [err bytes]
+                                                           (if err
+                                                             (lookup cp)
+                                                             (.write loader-out (prn-str (.toString bytes "base64"))))))
+                                                     
+                                                       :else ; assumes zip (jar) file
+                                                       (-> (.file un/open-jar path)
+                                                         (.then (fn [d]
+                                                                  (if-some [bytes (->> d .-files (some #(when (= file (.-path %))
+                                                                                                          (.buffer %))))]
+                                                                    (.then bytes (fn [bytes]
+                                                                                   (.write loader-out (prn-str (.toString bytes "base64")))))
+                                                                    (lookup cp))))))))
+                                 (.write loader-out "nil\n")))]
+                  (if (re-find #"^/|(/|^)\.\.(/|$)|\\" resource) ; say no to injection!
+                    (.write loader-out "nil\n")
+                    (lookup cp)))
                 (ud/dbug :sideloader-ignoring msg))))
           loader-out)))))
 
