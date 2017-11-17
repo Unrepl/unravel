@@ -107,7 +107,8 @@
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
-  (println "Type ^O for full docs of symbol under cursor, ^D to quit")
+  (println "Type ^O for full docs of symbol under cursor, ^D to quit,")
+  (println "^up and ^down to navigate history, ^C to interrupt current evaluation.")
   (println "Enter #__help for help")
   (println))
 
@@ -231,24 +232,45 @@ interpreted by the REPL client. The following specials are available:
         (.clearLine rl))
       (.prompt rl false))))
 
-(defn check-readable-cmd [s]
-  (list '(fn [s] (when-not (clojure.string/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
+(defn- guess-readable? [line]
+  (let [state #js {:stack #js [] :mode :normal}]
+    (reduce
+      (fn [_ ch]
+        (case (.-mode state)
+          :normal
+          (case ch
+            "[" (-> state .-stack (.push "]"))
+            "(" (-> state .-stack (.push ")"))
+            "{" (-> state .-stack (.push "}"))
+            ("]" ")" "}")
+            (let [expected (-> state .-stack .pop)]
+              (when-not (= expected ch)
+                (-> state .-stack (.push expected))
+                (reduced nil)))
+           \\ (set! (.-mode state) :normal-esc)
+           \" (set! (.-mode state) :string)
+           \; (set! (.-mode state) :comment)
+           nil)
+          :string
+          (case ch
+            \" (set! (.-mode state) :normal)
+            \\ (set! (.-mode state) :string-esc)
+            nil)
+          :string-esc (set! (.-mode state) :string)
+          :normal-esc (set! (.-mode state) :normal)
+          :comment
+          (case ch
+            (\newline \return) (set! (.-mode state) :normal)
+            nil)))
+      nil line)
+    (and (#{:comment :normal} (.-mode state)) (zero? (-> state .-stack .-length)))))
 
-(defn check-readable [{:keys [rl state ostream] :as ctx} full?]
-  (call-remote ctx
-               (check-readable-cmd (.-line rl))
-               (fn [ex-str]
-                 (if full?
-                   (when ex-str
-                     (println)
-                     (.clearScreenDown ostream)
-                     (ut/red #(println "Cannot read:" ex-str))
-                     (.prompt rl true))
-                   (let [warn? (boolean ex-str)]
-                     (when (not= warn? (boolean (:warn? @state)))
-                       (swap! state assoc :warn? warn?)
-                       (set-prompt ctx nil warn?)
-                       (.prompt rl true)))))))
+(defn check-readable [{:keys [rl state ostream] :as ctx}]
+  (let [warn? (not (guess-readable? (.-line rl)))]
+    (when (not= warn? (boolean (:warn? @state)))
+      (swap! state assoc :warn? warn?)
+      (set-prompt ctx nil warn?)
+      (.prompt rl true))))
 
 (defn- state-machine [state-map rf]
   (let [state (volatile! state-map)
@@ -311,47 +333,39 @@ interpreted by the REPL client. The following specials are available:
   [_ _ ctx]
   (interrupt ctx))
 
-(defn- guess-wellformed? [line]
-  (let [state #js {:stack #js [] :mode :normal}]
-    (reduce
-      (fn [_ ch]
-        (case (.-mode state)
-          :normal
-          (case ch
-            "[" (-> state .-stack (.push "]"))
-            "(" (-> state .-stack (.push ")"))
-            "{" (-> state .-stack (.push "}"))
-            ("]" ")" "}")
-            (let [expected (-> state .-stack .pop)]
-              (when-not (= expected ch)
-                (-> state .-stack (.push expected))
-                (reduced nil)))
-           \" (set! (.-mode state) :string)
-           \; (set! (.-mode state) :comment)
-           nil)
-          :string
-          (case ch
-            \" (set! (.-mode state) :normal)
-            \\ (set! (.-mode state) :string-esc)
-            nil)
-          :string-esc (set! (.-mode state) :string)
-          :comment
-          (case ch
-            (\newline \return) (set! (.-mode state) :normal)
-            nil)))
-      nil line)
-    (and (#{:comment :normal} (.-mode state)) (zero? (-> state .-stack .-length)))))
+(defn- line-up [rl]
+  (when-some [[_ prev-line curr-line] (re-find #"([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)$" (subs (.-line rl) 0 (.-cursor rl)))]
+    (._moveCursor rl (- (inc (max (count prev-line) (count curr-line)))))))
+
+(defn- line-down [rl]
+  (when-some [[_ end-curr-line next-line] (re-find #"^([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)" (subs (.-line rl) (.-cursor rl)))]
+    (let [start-curr-line (re-find #"[^\r\n]*$" (subs (.-line rl) 0 (.-cursor rl)))
+          curr-line (str start-curr-line end-curr-line)]
+      (._moveCursor rl (inc (min (+ (count end-curr-line) (count next-line)) (count curr-line)))))))
 
 (defmethod process[:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
   (let [ctx (assoc ctx :rl rl :completer-fn complete)
-        send-input! (-> rl .-_line (.bind rl))]
+        send-input! (-> rl .-_line (.bind rl))
+        super-_ttyWrite (.-_ttyWrite rl)]
     (specify! rl
       Object
       (_line [this]
-        (if (and (= (.-cursor this) (-> this .-line .-length)) (guess-wellformed? (.-line this)))
+        (if (and (= (.-cursor this) (-> this .-line .-length)) (guess-readable? (.-line this)))
           (send-input!)
-          (._insertString this "\n"))))
+          (._insertString this "\n")))
+      (_ttyWrite [this s key]
+        (cond
+          (.-ctrl key)
+          (case (.-name key)
+            "up" (._historyPrev this)
+            "down" (._historyNext this)
+            (.call super-_ttyWrite this s key))
+          :else
+          (case (.-name key)
+            "up" (line-up this)
+            "down" (line-down this) 
+            (.call super-_ttyWrite this s key)))))
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
@@ -377,15 +391,14 @@ interpreted by the REPL client. The following specials are available:
   [[_ [chunk key]] _ ctx]
   (cond
     (and (.-ctrl key) (= "o" (.-name key)))
-    (do
-      #_(check-readable ctx true)
-      (show-doc ctx true))
+    (show-doc ctx true)
 
     (and (.-ctrl key) (= "r" (.-name key))) ; r like run
     ((:send-input! ctx))
+    
     :else
     (do
-      (check-readable ctx false)
+      (check-readable ctx)
       (show-doc ctx false)))
     ctx)
 
