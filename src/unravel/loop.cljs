@@ -287,7 +287,7 @@ interpreted by the REPL client. The following specials are available:
     (cond-> (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})
       (seq cp)
       (assoc :loader-out
-        (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[unrepl.jvm.side-loader/hello")]
+        (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[:unrepl.jvm.side-loader/hello")]
           (.on loader-in "data"
             (fn [[tag payload :as msg]]
               (case tag
