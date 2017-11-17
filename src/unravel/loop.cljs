@@ -311,9 +311,47 @@ interpreted by the REPL client. The following specials are available:
   [_ _ ctx]
   (interrupt ctx))
 
+(defn- guess-wellformed? [line]
+  (let [state #js {:stack #js [] :mode :normal}]
+    (reduce
+      (fn [_ ch]
+        (case (.-mode state)
+          :normal
+          (case ch
+            "[" (-> state .-stack (.push "]"))
+            "(" (-> state .-stack (.push ")"))
+            "{" (-> state .-stack (.push "}"))
+            ("]" ")" "}")
+            (let [expected (-> state .-stack .pop)]
+              (when-not (= expected ch)
+                (-> state .-stack (.push expected))
+                (reduced nil)))
+           \" (set! (.-mode state) :string)
+           \; (set! (.-mode state) :comment)
+           nil)
+          :string
+          (case ch
+            \" (set! (.-mode state) :normal)
+            \\ (set! (.-mode state) :string-esc)
+            nil)
+          :string-esc (set! (.-mode state) :string)
+          :comment
+          (case ch
+            (\newline \return) (set! (.-mode state) :normal)
+            nil)))
+      nil line)
+    (and (#{:comment :normal} (.-mode state)) (zero? (-> state .-stack .-length)))))
+
 (defmethod process[:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
-  (let [ctx (assoc ctx :rl rl :completer-fn complete)]
+  (let [ctx (assoc ctx :rl rl :completer-fn complete)
+        send-input! (-> rl .-_line (.bind rl))]
+    (specify! rl
+      Object
+      (_line [this]
+        (if (and (= (.-cursor this) (-> this .-line .-length)) (guess-wellformed? (.-line this)))
+          (send-input!)
+          (._insertString this "\n"))))
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
@@ -324,7 +362,7 @@ interpreted by the REPL client. The following specials are available:
     (doto (:istream ctx)
       (.on "error" #(.exit js/process 143))
       (.on "keypress" (fn [chunk key] (sm :readline [:keypress [chunk key]]))))
-    ctx))
+    (assoc ctx :send-input! send-input!)))
 
 (defmethod process [:readline :line]
   [[_ line] _ ctx]
@@ -342,6 +380,9 @@ interpreted by the REPL client. The following specials are available:
     (do
       #_(check-readable ctx true)
       (show-doc ctx true))
+
+    (and (.-ctrl key) (= "r" (.-name key))) ; r like run
+    ((:send-input! ctx))
     :else
     (do
       (check-readable ctx false)
