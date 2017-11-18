@@ -1,5 +1,5 @@
 (ns unravel.loop
-  (:require [clojure.string]
+  (:require [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [clojure.walk]
             [lumo.core]
@@ -347,7 +347,10 @@ interpreted by the REPL client. The following specials are available:
   [[_ rl] _ {:keys [sm connect] :as ctx}]
   (let [ctx (assoc ctx :rl rl :completer-fn complete)
         send-input! (-> rl .-_line (.bind rl))
-        super-_ttyWrite (.-_ttyWrite rl)]
+        super-_ttyWrite (.-_ttyWrite rl)
+        super-_addHistory (.-_addHistory rl)
+        super-_historyPrev (.-_historyPrev rl)
+        super-_historyNext (.-_historyNext rl)]
     (specify! rl
       Object
       (_line [this]
@@ -365,7 +368,20 @@ interpreted by the REPL client. The following specials are available:
           (case (.-name key)
             "up" (line-up this)
             "down" (line-down this) 
-            (.call super-_ttyWrite this s key)))))
+            (.call super-_ttyWrite this s key))))
+      (_addHistory [this]
+        (let [line (.-line this)]
+          (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
+          (.call super-_addHistory this)
+          (set! (.-line this) line)))
+      (_historyPrev [this]
+        (.call super-_historyPrev this)
+        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+        (._refreshLine this))
+      (_historyNext [this]
+        (.call super-_historyNext this)
+        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+        (._refreshLine this)))
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
