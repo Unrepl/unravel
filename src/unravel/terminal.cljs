@@ -3,27 +3,20 @@
 (defn interactive? [] (.-isTTY js/process.stdin))
 (defn rich? [] (.-isTTY js/process.stdout))
 
-(defn tred []
-  (when (rich?)
-    (.write js/process.stdout "\33[31m")))
+(defn- with-sgr [code]
+  (let [code (str "\33[" code "m")]
+    (if (rich?) 
+      (fn [f]
+        (try
+          (.write js/process.stdout code)
+          (f)
+          (finally
+            (.write js/process.stdout "\33[0m"))))
+      #(%))))
 
-(defn tcyan []
-  (when (rich?)
-    (.write js/process.stdout "\33[36m")))
-
-(defn treset []
-  (when (rich?)
-    (.write js/process.stdout "\33[0m")))
-
-(defn red [f]
-  (tred)
-  (f)
-  (treset))
-
-(defn cyan [f]
-  (tcyan)
-  (f)
-  (treset))
+(def red (with-sgr "31"))
+(def cyan (with-sgr "36"))
+(def yellow (with-sgr "33"))
 
 #_(defn color [f]
     (when (rich?)
