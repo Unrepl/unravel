@@ -1,9 +1,15 @@
 #!/bin/bash
 
-if [[ "$1" == "--test" ]]; then
-    exec rlwrap java -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar scripts/socket.clj
-elif [[ "$1" == "--wait" ]]; then
-    exec java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar -e '(.join (Thread/currentThread))'
+if [[ "${1-}" == "--port" ]]; then
+    shift
+    port="$1"
+    shift
 else
-    exec java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar "$@"
+    port=50505
+fi
+
+if [[ "$1" == "--wait" ]]; then
+    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar -e '(.join (Thread/currentThread))'
+else
+    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar "$@"
 fi
