@@ -27,7 +27,7 @@
    :host (spec/? string?) :port (spec/and string? #(re-matches #"\d+" %))))
 
 (def help-text
-  "Syntax: unravel [--debug] [-c|--classpath <paths>] [--blob blob1 [--blob blob2 ...]] [<host>] <port>\n        unravel --version")
+  "Syntax: unravel [--debug] [-c|--classpath <paths>] [--blob blob1 [--blob blob2 ...]] [--flag flag1 [--flag --flag2 ...]] [<host>] <port>\n        unravel --version")
 
 (defn -main [& more]
   (init)
