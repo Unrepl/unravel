@@ -1,51 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
+set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-import sh, re, os.path, sys
+trap "exit" INT TERM && trap "kill 0" EXIT
 
-def cat(fn):
-    contents = open(fn).read()
-
-    sys.stdout.write(contents)
-    sys.stdout.flush()
-
-def check(m):
-    try:
-        sh.bash("-c", "scripts/try --classpath test/resources <test/"+m+".clj >test/"+m+".is 2>test/"+m+".err", _fg=True)
-    except Exception as e:
-        print "````"
-        cat("test/"+m+".is")
-        cat("test/"+m+".err")
-        print "````"
-        raise e
-
-    err=open("test/"+m+".err").read()
-    if err != "":
-        print "````"
-        print err
-        print "````"
-        assert False, "Non-empty stderr"
-
-    if os.path.isfile("test/"+m+".ought.regex"):
-        regex = open("test/"+m+".ought.regex").read()
-        s = open("test/"+m+".is").read()
-
-        if not re.match(regex,s, re.MULTILINE):
-            print "````"
-            print s
-            print "````"
-            assert False, "Output does not match regex"
-    else:
-        sh.diff("-u", "test/"+m+".ought", "test/"+m+".is")
-
-def main():
-    if len(sys.argv) > 1 and sys.argv[1] == "--standalone":
-        print "Starting Clojure process.."
-        sh.bash("scripts/server", _bg=True)
-
-    for n in ["basic", "exception", "sideloader"]:
-        print "Testing " + n + "..."
-        check(n)
-
-    print "OK"
-
-main()
+scripts/server --port 50506 --wait &
+sleep 0.3
+scripts/test-runner
