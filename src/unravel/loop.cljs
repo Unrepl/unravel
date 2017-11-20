@@ -418,10 +418,16 @@ interpreted by the REPL client. The following specials are available:
       (.emit (:rl ctx) "line" (str trigger))
       (assoc ctx :trigger trigger))))
 
-(defn start [host port options]
+(defn default-blob-fname []
+  (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj"))
+
+(defn start [host port {:keys [blobs] :as options}]
   (let [connect (socket-connector host port)
         terminating? (atom false)
-        {conn-in :edn-in conn-out :chars-out} (connect (read-payload) terminating?)
+        payload (->> (or blobs [(default-blob-fname)])
+                     (map lumo.io/slurp)
+                     (clojure.string/join "\n"))
+        {conn-in :edn-in conn-out :chars-out} (connect payload terminating?)
         sm
         (state-machine {:istream js/process.stdin
                         :ostream js/process.stdout
