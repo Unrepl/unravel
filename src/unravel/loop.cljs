@@ -48,8 +48,16 @@
     (some-> rl (.prompt true)))
   ctx)
 
+(defn- terminate! [ctx]
+  (reset! (:terminating? ctx) true)
+  (some-> ctx :conn-out .end)
+  (some-> ctx :aux-out .end)
+  (some-> ctx :loader-out .destroy)) ; plain .end hangs
+
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
-  (ut/cyan #(prn result))
+  (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
+    (terminate! ctx)
+    (ut/cyan #(prn result)))
   (assoc ctx :pending-eval nil))
 
 (defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ ctx]
@@ -356,7 +364,7 @@ interpreted by the REPL client. The following specials are available:
   [_ _ ctx]
   (interrupt ctx))
 
-(defmethod process[:readline :ready]
+(defmethod process [:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
   (let [ctx (assoc ctx :rl rl :completer-fn complete)]
     (when-some [ns (some-> ctx :state deref :ns)]
@@ -403,11 +411,12 @@ interpreted by the REPL client. The following specials are available:
   [_ _ ctx]
   (when (ut/rich?)
     (println))
-  (reset! (:terminating? ctx) true)
-  (some-> ctx :conn-out .end)
-  (some-> ctx :aux-out .end)
-  (some-> ctx :loader-out .destroy) ; plain .end hangs
-  ctx)
+  (if (ut/interactive?)
+    (doto ctx terminate!)
+    ; in non-interactive mode we don't want to close until everyhing has been processed
+    (let [trigger (keyword "unravel.loop" (gensym "I'm-done!__"))]
+      (.emit (:rl ctx) "line" (str trigger))
+      (assoc ctx :trigger trigger))))
 
 (defn start [host port options]
   (let [connect (socket-connector host port)
