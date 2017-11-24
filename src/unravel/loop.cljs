@@ -119,7 +119,8 @@
 
 (defn banner [host port]
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
-  (println "Type ^O for full docs of symbol under cursor, ^D to quit")
+  (println "Type ^O for full docs of symbol under cursor, ^D to quit,")
+  (println "^up and ^down to navigate history, ^C to interrupt current evaluation.")
   (println "Enter #__help for help")
   (println))
 
@@ -248,24 +249,45 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl false)))
   ctx)
 
-(defn check-readable-cmd [s]
-  (list '(fn [s] (when-not (str/blank? s) (try (read-string s) nil (catch Exception e (.getMessage e))))) s))
+(defn- guess-readable? [line]
+  (let [state #js {:stack #js [] :mode :normal}]
+    (reduce
+      (fn [_ ch]
+        (case (.-mode state)
+          :normal
+          (case ch
+            "[" (-> state .-stack (.push "]"))
+            "(" (-> state .-stack (.push ")"))
+            "{" (-> state .-stack (.push "}"))
+            ("]" ")" "}")
+            (let [expected (-> state .-stack .pop)]
+              (when-not (= expected ch)
+                (-> state .-stack (.push expected))
+                (reduced nil)))
+           \\ (set! (.-mode state) :normal-esc)
+           \" (set! (.-mode state) :string)
+           \; (set! (.-mode state) :comment)
+           nil)
+          :string
+          (case ch
+            \" (set! (.-mode state) :normal)
+            \\ (set! (.-mode state) :string-esc)
+            nil)
+          :string-esc (set! (.-mode state) :string)
+          :normal-esc (set! (.-mode state) :normal)
+          :comment
+          (case ch
+            (\newline \return) (set! (.-mode state) :normal)
+            nil)))
+      nil line)
+    (and (#{:comment :normal} (.-mode state)) (zero? (-> state .-stack .-length)))))
 
-(defn check-readable [{:keys [rl state ostream] :as ctx} full?]
-  (call-remote ctx
-    (check-readable-cmd (.-line rl))
-    (fn [ex-str]
-      (if full?
-        (when ex-str
-          (println)
-          (.clearScreenDown ostream)
-          (ut/red #(println "Cannot read:" ex-str))
-          (.prompt rl true))
-        (let [warn? (boolean ex-str)]
-          (when (not= warn? (boolean (:warn? @state)))
-            (swap! state assoc :warn? warn?)
-            (set-prompt ctx nil warn?)
-            (.prompt rl true)))))))
+(defn check-readable [{:keys [rl state ostream] :as ctx}]
+  (let [warn? (not (guess-readable? (.-line rl)))]
+    (when (not= warn? (boolean (:warn? @state)))
+      (swap! state assoc :warn? warn?)
+      (set-prompt ctx nil warn?)
+      (.prompt rl true))))
 
 (defn- state-machine [state-map rf]
   (let [state (volatile! state-map)
@@ -364,9 +386,58 @@ interpreted by the REPL client. The following specials are available:
   [_ _ ctx]
   (interrupt ctx))
 
+(defn- line-up [rl]
+  (if-some [[_ prev-line curr-line] (re-find #"([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)$" (subs (.-line rl) 0 (.-cursor rl)))]
+    (._moveCursor rl (- (inc (max (count prev-line) (count curr-line)))))
+    (doto rl
+      ._historyPrev
+      (._moveCursor js/Infinity))))
+
+(defn- line-down [rl]
+  (if-some [[_ end-curr-line next-line] (re-find #"^([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)" (subs (.-line rl) (.-cursor rl)))]
+    (let [start-curr-line (re-find #"[^\r\n]*$" (subs (.-line rl) 0 (.-cursor rl)))
+          curr-line (str start-curr-line end-curr-line)]
+      (._moveCursor rl (inc (min (+ (count end-curr-line) (count next-line)) (count curr-line)))))
+    (doto rl
+      ._historyNext
+      (._moveCursor js/-Infinity))))
+
 (defmethod process [:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
-  (let [ctx (assoc ctx :rl rl :completer-fn complete)]
+  (let [ctx (assoc ctx :rl rl :completer-fn complete)
+        send-input! (-> rl .-_line (.bind rl))
+        super-_ttyWrite (.-_ttyWrite rl)
+        super-_addHistory (.-_addHistory rl)
+        super-_historyPrev (.-_historyPrev rl)
+        super-_historyNext (.-_historyNext rl)]
+    (specify! rl
+      Object
+      (_line [this]
+        (if (and (= (.-cursor this) (-> this .-line .-length)) (guess-readable? (.-line this)))
+          (send-input!)
+          (._insertString this "\n")))
+      (_ttyWrite [this s key]
+        (cond
+          (not (or (.-ctrl key) (.-meta key) (.-shift key)))
+          (case (.-name key)
+            "up" (line-up this)
+            "down" (line-down this) 
+            (.call super-_ttyWrite this s key))
+          :else
+          (.call super-_ttyWrite this s key)))
+      (_addHistory [this]
+        (let [line (.-line this)]
+          (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
+          (.call super-_addHistory this)
+          (set! (.-line this) line)))
+      (_historyPrev [this]
+        (.call super-_historyPrev this)
+        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+        (._refreshLine this))
+      (_historyNext [this]
+        (.call super-_historyNext this)
+        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+        (._refreshLine this)))
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
@@ -377,7 +448,7 @@ interpreted by the REPL client. The following specials are available:
     (doto (:istream ctx)
       (.on "error" #(.exit js/process 143))
       (.on "keypress" (fn [chunk key] (sm :readline [:keypress [chunk key]]))))
-    ctx))
+    (assoc ctx :send-input! send-input!)))
 
 (defmethod process [:readline :line]
   [[_ line] _ ctx]
@@ -398,12 +469,14 @@ interpreted by the REPL client. The following specials are available:
         is-pasting (< (- now (:last-keypress ctx)) 10000)]
     (cond
       (and (.-ctrl key) (= "o" (.-name key)))
-      (do
-        #_(check-readable ctx true)
-        (show-doc ctx true))
+      (show-doc ctx true)
+      
+      (and (.-ctrl key) (= "j" (.-name key))) ; j like jog (run)
+      ((:send-input! ctx))
+    
       :else
       (when-not is-pasting
-        (check-readable ctx false)
+        (check-readable ctx)
         (show-doc ctx false)))
     (assoc ctx :last-keypress now)))
 
