@@ -72,7 +72,7 @@ To launch a Clojure process with a Socket REPL listening on port 50505 using boo
 boot -i "(do (require 'clojure.core.server) (clojure.core.server/start-server {:port 50505 :name :repl :accept 'clojure.core.server/repl}))" wait
 ```
 
-Or if you have `boot >= 2.7.2-SNAPSHOT`:
+Or if you have `boot >= 2.7.2`:
 
 ```
 boot socket-server --port 50505 wait
