@@ -387,14 +387,20 @@ interpreted by the REPL client. The following specials are available:
   (interrupt ctx))
 
 (defn- line-up [rl]
-  (when-some [[_ prev-line curr-line] (re-find #"([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)$" (subs (.-line rl) 0 (.-cursor rl)))]
-    (._moveCursor rl (- (inc (max (count prev-line) (count curr-line)))))))
+  (if-some [[_ prev-line curr-line] (re-find #"([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)$" (subs (.-line rl) 0 (.-cursor rl)))]
+    (._moveCursor rl (- (inc (max (count prev-line) (count curr-line)))))
+    (doto rl
+      ._historyPrev
+      (._moveCursor js/Infinity))))
 
 (defn- line-down [rl]
-  (when-some [[_ end-curr-line next-line] (re-find #"^([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)" (subs (.-line rl) (.-cursor rl)))]
+  (if-some [[_ end-curr-line next-line] (re-find #"^([^\r\n]*)(?:\r\n|\r|\n)([^\r\n]*)" (subs (.-line rl) (.-cursor rl)))]
     (let [start-curr-line (re-find #"[^\r\n]*$" (subs (.-line rl) 0 (.-cursor rl)))
           curr-line (str start-curr-line end-curr-line)]
-      (._moveCursor rl (inc (min (+ (count end-curr-line) (count next-line)) (count curr-line)))))))
+      (._moveCursor rl (inc (min (+ (count end-curr-line) (count next-line)) (count curr-line)))))
+    (doto rl
+      ._historyNext
+      (._moveCursor js/-Infinity))))
 
 (defmethod process [:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
@@ -412,16 +418,13 @@ interpreted by the REPL client. The following specials are available:
           (._insertString this "\n")))
       (_ttyWrite [this s key]
         (cond
-          (.-ctrl key)
-          (case (.-name key)
-            "up" (._historyPrev this)
-            "down" (._historyNext this)
-            (.call super-_ttyWrite this s key))
-          :else
+          (not (or (.-ctrl key) (.-meta key) (.-shift key)))
           (case (.-name key)
             "up" (line-up this)
             "down" (line-down this) 
-            (.call super-_ttyWrite this s key))))
+            (.call super-_ttyWrite this s key))
+          :else
+          (.call super-_ttyWrite this s key)))
       (_addHistory [this]
         (let [line (.-line this)]
           (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
