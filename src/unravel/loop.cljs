@@ -468,7 +468,7 @@ interpreted by the REPL client. The following specials are available:
       (and (.-ctrl key) (= "o" (.-name key)))
       (show-doc ctx true)
       
-      (and (.-ctrl key) (= "r" (.-name key))) ; r like run
+      (and (.-ctrl key) (= "j" (.-name key))) ; j like jog (run)
       ((:send-input! ctx))
     
       :else
