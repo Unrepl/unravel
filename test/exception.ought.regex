@@ -1,1 +1,1 @@
-^ExceptionInfo.*\nArityException Wrong number of args.*$
+^(.|\n)*Wrong number of args(.|\n)*$

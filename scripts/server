@@ -9,7 +9,8 @@ else
 fi
 
 if [[ "$1" == "--wait" ]]; then
-    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar -e '(.join (Thread/currentThread))'
+    shift
+    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -cp $HOME/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar clojure.main -e '(.join (Thread/currentThread))' "$@"
 else
-    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.9.0-alpha14/clojure-1.9.0-alpha14.jar "$@"
+    exec java -Dclojure.server.myrepl="{:port $port,:accept,clojure.core.server/repl}" -cp $HOME/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar clojure.main "$@"
 fi

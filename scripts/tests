@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-trap "exit" INT TERM && trap "kill 0" EXIT
+trap 'exit $status' INT TERM && trap "kill 0" EXIT
+
+status=0
 
 scripts/server --port 50506 --wait &
 sleep 0.3
-scripts/test-runner
+scripts/test-runner || status=$?
