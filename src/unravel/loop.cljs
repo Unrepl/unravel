@@ -13,7 +13,9 @@
             [unravel.log :as ud]
             [unravel.util :as uu]
             [unravel.lisp :as ul]
-            [unravel.exception :as ue]))
+            [unravel.exception :as ue]
+            [net.cgrand.packed-printer :as pp]
+            [unravel.pprint]))
 
 (defn squawk [rl & xs]
   (println)
@@ -57,7 +59,9 @@
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
     (terminate! ctx)
-    (ut/cyan #(prn result)))
+    (ut/cyan (if (some-> ctx :options :flags :packed)
+               #(pp/pprint result :as :unrepl/edn :strict 20)
+               #(prn result))))
   (assoc ctx :pending-eval nil))
 
 (defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ ctx]

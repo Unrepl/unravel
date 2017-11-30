@@ -27,9 +27,9 @@
   },
   "dependencies": {
     "historic-readline": "^1.0.8",
-    "lumo": "^0.20.6",
     "lumo-cljs": "1.7.0",
     "os-homedir": "^1.0.2",
+    "packed-printer": "^0.3.0",
     "unzipper": "^0.8.11"
   }
 }

@@ -5,7 +5,16 @@
 
 (defonce ellipsis-store (atom {}))
 
-(defrecord Ellipsis [get])
+(defrecord Ellipsis [get id])
+
+(def unreachable (Ellipsis. nil nil))
+
+(defn ellipsis [{:keys [get]}]
+  (if get
+    (let [counter (swap! ellipsis-counter inc)]
+       (swap! ellipsis-store assoc counter get)
+       (Ellipsis. get counter))
+    unreachable))
 
 (defrecord ClojureVar [name])
 
@@ -21,10 +30,10 @@
     (write-all writer "#'" (:name v))))
 
 (def tag-map
-  {'unrepl/... map->Ellipsis
+  {'unrepl/... ellipsis
    'clojure/var ->ClojureVar})
 
 (defn register-tag-parsers []
   (cljs.reader/register-default-tag-parser! tagged-literal)
-  (cljs.reader/register-tag-parser! 'unrepl/... map->Ellipsis)
-  (cljs.reader/register-tag-parser! 'clojure/var ->ClojureVar))
+  (doseq [[tag parser] tag-map]
+    (cljs.reader/register-tag-parser! tag parser)))
