@@ -22,8 +22,8 @@
   Ellipsis
   (-pr-writer [v writer _]
     (if-some [id (:id v)]
-      (write-all writer "#__" id)
-      (write-all writer "#__\u29B0" (:id v))))
+      (write-all writer "/" id)
+      (write-all writer "/\u29B0" (:id v))))
 
   ClojureVar
   (-pr-writer [v writer _]

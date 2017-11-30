@@ -53,7 +53,7 @@
                                          x))
                            [(delims "}")])
                 (seq? x) (concat [(delims "(")] (coll-spans x) [(delims ")")])
-                (instance? unravel.tags/Ellipsis x) [(let [s (if-some [id (:id x)] (str "#__" id) "#_\u29B0")]
+                (instance? unravel.tags/Ellipsis x) [(let [s (if-some [id (:id x)] (str "/" id) "/\u29B0")]
                                                        (ansi s (str "\33[4m" s "\33[24m")))]
                 (map? x) (if-some [kv (find x tags/unreachable)]
                            (concat [(delims "{")] (coll-spans (concat (dissoc x tags/unreachable) [kv]) [te/comma te/space] kv-spans) [(delims "}")])

@@ -130,18 +130,18 @@
   (println (str "Unravel " uv/version " connected to " host ":" port "\n"))
   (println "Type ^O for full docs of symbol under cursor, ^D to quit,")
   (println "^up and ^down to navigate history, ^C to interrupt current evaluation.")
-  (println "Enter #__help for help")
+  (println "Enter /help for help")
   (println))
 
 (defn help []
   (println)
   (println "Type ^O for full docs of symbol under cursor, ^D to quit.")
-  (println "Lines starting with `#__` are treated as special commands and
+  (println "Lines starting with `/` are treated as special commands and
 interpreted by the REPL client. The following specials are available:
 
-- `#__help` shows a help screen
-- `#__1`, `#__2`, `#__3` ...: expand the numberd lazy seq ellipsis
-- `#__`: expand the most recent lazy seq ellipsis ")
+- `/help` shows a help screen
+- `/1`, `/2`, `/3` ...: expand the numbered ellipsis
+- `//`: expand the most recent lazy seq ellipsis ")
   (println))
 
 (defn read-payload []
@@ -154,8 +154,8 @@ interpreted by the REPL client. The following specials are available:
       (help)
       (.prompt rl))
     
-    (or (nil? cmd) (re-matches #"^\d*$" cmd))
-    (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
+    (re-matches #"\d+|/" cmd)
+    (if-let [cmd (get @ug/ellipsis-store (if (= cmd "/") @ug/ellipsis-counter  (js/parseInt cmd)))]
       (send-command ctx (str cmd))
       (.prompt rl))))
 
@@ -463,7 +463,7 @@ interpreted by the REPL client. The following specials are available:
   [[_ line] _ ctx]
   (when (ut/rich?)
     (doto (:ostream ctx) .clearLine .clearScreenDown))
-  (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
+  (if-let [[_ cmd] (re-matches #"^\s*/([/a-zA-Z0-9]+)\s*$" line)]
     (special ctx cmd)
     (send-command ctx line))
   ctx)
