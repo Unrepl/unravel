@@ -29,7 +29,12 @@
          :text ""
          :start-length 0
          :start-text ""
-         :indent kv-indent}]
+         :indent kv-indent}
+        meta-open {:length 1
+                   :text "^"
+                   :start-length 1
+                   :start-text "^"
+                   :indent kv-indent}]
     (letfn [(coll-spans
               ([x] (coll-spans x [te/space] spans))
               ([x sp spans]
@@ -42,9 +47,12 @@
               (cond
                 (tagged-literal? x)
                 (case (:tag x)
-                  'unrepl/string (let [[s e] (:form x)
-                                       s (pr-str s)
-                                       s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
+                  unrepl/meta (let [[m v] (:form x)]
+                                (cons meta-open (concat (spans m) te/space))
+                                (concat (cons meta-open (spans m)) (cons te/space (spans v)) [te/kv-close]))
+                  unrepl/string (let [[s e] (:form x)
+                                      s (pr-str s)
+                                      s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
                   (concat [kv-open (str "#" (pr-str (:tag x))) te/space] (spans (:form x)) [te/kv-close]))
                 (vector? x) (concat [(delims "[")] (coll-spans x) [(delims "]")])
                 (set? x) (concat [(delims "#{")]
@@ -53,8 +61,9 @@
                                          x))
                            [(delims "}")])
                 (seq? x) (concat [(delims "(")] (coll-spans x) [(delims ")")])
-                (instance? unravel.tags/Ellipsis x) [(let [s (if-some [id (:id x)] (str "/" id) "/\u29B0")]
+                (instance? unravel.tags.Ellipsis x) [(let [s (if-some [id (:id x)] (str "/" id) "/\u29B0")]
                                                        (ansi s (str "\33[4m" s "\33[24m")))]
+                (instance? unravel.tags.ClojureVar x) [(str "#'" (:name x))]
                 (map? x) (if-some [kv (find x tags/unreachable)]
                            (concat [(delims "{")] (coll-spans (concat (dissoc x tags/unreachable) [kv]) [te/comma te/space] kv-spans) [(delims "}")])
                            (concat [(delims "{")] (coll-spans x [te/comma te/space] kv-spans) [(delims "}")]))
