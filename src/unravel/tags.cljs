@@ -21,9 +21,9 @@
 (extend-protocol IPrintWithWriter
   Ellipsis
   (-pr-writer [v writer _]
-    (let [counter (swap! ellipsis-counter inc)]
-      (swap! ellipsis-store assoc counter (:get v))
-      (write-all writer "#__" counter)))
+    (if-some [id (:id v)]
+      (write-all writer "#__" id)
+      (write-all writer "#__\u29B0" (:id v))))
 
   ClojureVar
   (-pr-writer [v writer _]
