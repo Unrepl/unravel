@@ -48,11 +48,12 @@
                 (tagged-literal? x)
                 (case (:tag x)
                   unrepl/meta (let [[m v] (:form x)]
-                                (cons meta-open (concat (spans m) te/space))
                                 (concat (cons meta-open (spans m)) (cons te/space (spans v)) [te/kv-close]))
                   unrepl/string (let [[s e] (:form x)
                                       s (pr-str s)
                                       s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
+                  unrepl/ratio (let [[n d] (:form x)]
+                                 (str n "/" d))
                   (concat [kv-open (str "#" (pr-str (:tag x))) te/space] (spans (:form x)) [te/kv-close]))
                 (vector? x) (concat [(delims "[")] (coll-spans x) [(delims "]")])
                 (set? x) (concat [(delims "#{")]
