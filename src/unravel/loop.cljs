@@ -254,38 +254,61 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl false)))
   ctx)
 
-(defn- guess-readable? [line]
+(defn- guess-edit-state [line]
   (let [state #js {:stack #js [] :mode :normal}]
     (reduce
-      (fn [_ ch]
-        (case (.-mode state)
-          :normal
-          (case ch
-            "[" (-> state .-stack (.push "]"))
-            "(" (-> state .-stack (.push ")"))
-            "{" (-> state .-stack (.push "}"))
-            ("]" ")" "}")
-            (let [expected (-> state .-stack .pop)]
-              (when-not (= expected ch)
-                (-> state .-stack (.push expected))
-                (reduced nil)))
-           \\ (set! (.-mode state) :normal-esc)
-           \" (set! (.-mode state) :string)
-           \; (set! (.-mode state) :comment)
-           nil)
-          :string
-          (case ch
-            \" (set! (.-mode state) :normal)
-            \\ (set! (.-mode state) :string-esc)
-            nil)
-          :string-esc (set! (.-mode state) :string)
-          :normal-esc (set! (.-mode state) :normal)
-          :comment
-          (case ch
-            (\newline \return) (set! (.-mode state) :normal)
-            nil)))
-      nil line)
+      (fn [_ i]
+        (let [ch (nth line i)]
+          (case (.-mode state)
+            :normal
+            (case ch
+              "[" (-> state .-stack (.push "]"))
+              "(" (-> state .-stack (.push ")"))
+              "{" (-> state .-stack (.push "}"))
+              ("]" ")" "}")
+              (if-some [expected (-> state .-stack .pop)]
+                (when-not (= expected ch)
+                  (doto state
+                    (-> .-stack (.push expected))
+                    (-> .-mode (set! :error))
+                    (-> .-error (set! {:cause :unexpected-closing-delimiter
+                                       :expected expected
+                                       :pos i})))
+                  (reduced nil))
+                (do
+                  (doto state
+                    (-> .-mode (set! :error))
+                    (-> .-error (set! {:cause :unexpected-closing-delimiter
+                                       :pos i})))
+                  (reduced nil)))
+              \\ (set! (.-mode state) :normal-esc)
+              \" (set! (.-mode state) :string)
+              \; (set! (.-mode state) :comment)
+             nil)
+            :string
+            (case ch
+              \" (set! (.-mode state) :normal)
+              \\ (set! (.-mode state) :string-esc)
+              nil)
+            :string-esc (set! (.-mode state) :string)
+            :normal-esc (set! (.-mode state) :normal)
+            :comment
+           (case ch
+             (\newline \return) (set! (.-mode state) :normal)
+             nil))))
+      nil (range (count line)))
+    state))
+
+(defn- guess-readable? [line]
+  (let [state (guess-edit-state line)]
     (and (#{:comment :normal} (.-mode state)) (zero? (-> state .-stack .-length)))))
+
+(defn- find-closing-delimiter [line i]
+  (let [state (guess-edit-state (subs line i))]
+    (when (= :error (.-mode state))
+      (let [{:keys [pos cause expected]} (.-error state)]
+        (when (and (= cause :unexpected-closing-delimiter) (nil? expected))
+          (+ i pos))))))
 
 (defn check-readable [{:keys [rl state ostream] :as ctx}]
   (let [warn? (not (guess-readable? (.-line rl)))]
@@ -407,9 +430,63 @@ interpreted by the REPL client. The following specials are available:
       ._historyNext
       (._moveCursor js/-Infinity))))
 
+(defn- parfix
+  "Returns falsy when it doesn't handle the edit."
+  [rl pre post s]
+  (let [edit-state (guess-edit-state pre)]
+    (case (.-mode edit-state)
+      :normal
+      (case s
+        "\r" (when-not (re-matches #"\s*" (subs (.-line rl) (.-cursor rl)))
+               (let [n (-> edit-state .-stack .-length)]
+                (doto rl
+                  (._insertString "\n")
+                  (cond-> (pos? n) (._insertString (str/join (repeat n "  ")))))))
+        ("(" "[" "{" "\"" ";") (let [pair (case s "(" "()" "[" "[]" "{" "{}" "\"" "\"\"" ";" ";\n")] 
+                                (doto rl
+                                  (._insertString pair)
+                                  (._moveCursor -1)))
+        (")" "]" "}") (when-some [[_ del] (re-find (re-pattern (str "^(\\s+)?\\" s)) post)]
+                        (doto rl
+                          (cond-> del
+                            (doto 
+                              (-> .-line (set! (str pre (subs post (count del)))))
+                              ._refreshLine))
+                          (._moveCursor 1)))
+        "\u007F" (when-some [[open p] (re-find #"#?([({\[])$" pre)]
+                   (when-some [i (find-closing-delimiter post 0)]
+                     (case [p (nth post i)]
+                       (["(" ")"] ["[" "]"] ["{" "}"])
+                       (doto rl
+                         (-> .-line (set! (str (subs pre 0 (- (count pre) (count open)))
+                                            (subs post 0 i) (subs post (inc i)))))
+                         ._refreshLine
+                         (._moveCursor (- (count open))))
+                       nil)))
+        nil)
+      
+      :string
+      (case s
+        "\"" (if (= \" (aget post 0))
+               (doto rl (._moveCursor 1))
+               (doto rl (._insertString "\"  \"") (._moveCursor -2))) ; split
+        nil)
+      
+      :comment
+      (case s
+        "\r" (let [trail (re-find #"^[^\n\r]*" post)]
+               (when-not (re-matches #"\s*" trail)
+                 (let [indent (count (second (re-find #"([^\n\r;]*);[^\n\r]*$" pre)))]
+                   (doto rl (._insertString (str "\n" (apply str (repeat indent " ")) "; "))))))
+        
+        nil)
+      
+      nil)))
+
 (defmethod process [:readline :ready]
   [[_ rl] _ {:keys [sm connect] :as ctx}]
   (let [ctx (assoc ctx :rl rl :completer-fn complete)
+        parfix-enabled (-> ctx :options :flags (contains? :parfix))
         send-input! (-> rl .-_line (.bind rl))
         super-_ttyWrite (.-_ttyWrite rl)
         super-_addHistory (.-_addHistory rl)
@@ -418,18 +495,19 @@ interpreted by the REPL client. The following specials are available:
     (specify! rl
       Object
       (_line [this]
-        (if (and (= (.-cursor this) (-> this .-line .-length)) (guess-readable? (.-line this)))
+        (if (and (re-matches #"\s*" (subs (.-line this) (.-cursor this))) (guess-readable? (.-line this)))
           (send-input!)
           (._insertString this "\n")))
       (_ttyWrite [this s key]
-        (cond
-          (not (or (.-ctrl key) (.-meta key) (.-shift key)))
-          (case (.-name key)
-            "up" (line-up this)
-            "down" (line-down this) 
-            (.call super-_ttyWrite this s key))
-          :else
-          (.call super-_ttyWrite this s key)))
+        (or (and parfix-enabled
+              (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
+          (if
+            (not (or (.-ctrl key) (.-meta key) (.-shift key)))
+            (case (.-name key)
+              "up" (line-up this)
+              "down" (line-down this) 
+              (.call super-_ttyWrite this s key))
+            (.call super-_ttyWrite this s key))))
       (_addHistory [this]
         (let [line (.-line this)]
           (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
@@ -481,8 +559,9 @@ interpreted by the REPL client. The following specials are available:
     
       :else
       (when-not is-pasting
-        (check-readable ctx)
-        (show-doc ctx false)))
+        (doto ctx
+          check-readable
+          (show-doc false))))
     (assoc ctx :last-keypress now)))
 
 (defmethod process [:readline :close]

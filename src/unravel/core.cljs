@@ -42,5 +42,5 @@
     (uo/start (or host "localhost")
               port
               {:cp (into [] (comp (mapcat #(str/split % (re-pattern (.-delimiter un/path)))) (distinct)) cp)
-               :flags (->> flags (map keyword) set)
+               :flags (into #{} (comp (mapcat #(re-seq #"(?:([^\s,/]+)/)?([^\s,]+)" %)) (map (fn [[_ ns name]] (keyword ns name)))) flags)
                :blobs blobs})))

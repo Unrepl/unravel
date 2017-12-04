@@ -62,7 +62,6 @@
 (defn make-pr-str-stream
   []
   (let [transform (fn [v enc cb]
-                    (this-as this
-                      (cb nil (prn-str v))))]
+                    (cb nil (prn-str v)))]
     (Transform. #js {:writableObjectMode true
                      :transform transform})))
