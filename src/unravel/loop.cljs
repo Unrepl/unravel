@@ -1,6 +1,5 @@
 (ns unravel.loop
   (:require [clojure.string :as str]
-            [clojure.pprint :refer [pprint]]
             [clojure.walk]
             [lumo.core]
             [lumo.io :refer [slurp]]
@@ -60,7 +59,7 @@
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
     (terminate! ctx)
     (ut/cyan (if (some-> ctx :options :flags :packed)
-               #(pp/pprint result :as :unrepl/edn :strict 20)
+               #(pp/pprint result :as :unrepl/edn :strict 20 :width (quot (.-columns js/process.stdout) 1.11))
                #(prn result))))
   (assoc ctx :pending-eval nil))
 
@@ -526,4 +525,5 @@ interpreted by the REPL client. The following specials are available:
           (fn [ctx origin msg]
             (ud/dbug :receive {:origin origin} msg)
             (process msg origin ctx)))]
+    #_(.on js/process.stdout "resize" #(sm :term-resize [(.-columns js/process.stdout) (.-rows js/process.stdout)]))
     (.on conn-in "data" #(sm :conn %))))
