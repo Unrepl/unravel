@@ -17,6 +17,7 @@ jobs:
           paths:
             - ~/.m2
           key: clojure
+      - run: lein cljfmt check
       - run: |
               sudo apt-get update && \
               sudo apt-get install -y curl && \
