@@ -16,6 +16,28 @@
    :start-length (count text)
    :start-text text})
 
+(defn opening [s i]
+  {:start-length (count s)
+   :start-text (str "\33[2m" s "\33[22m")
+   :length (count s)
+   :text (str "\33[2m" s "\33[22m")
+   :indent i})
+
+(defn closing [s] 
+  {:length (count s)
+   :text (str "\33[2m" s "\33[22m")
+   :br-after? true
+   :indent -1})
+
+(def delims
+  (-> {}
+    (into (map (fn [s] [s (opening s (count s))])) ["(" "[" "{" "#{"])
+    (into (map (fn [s] [s (closing s)])) [")" "]" "}"])))
+
+(def comma {:length 1
+            :text "\33[2m,\33[22m"
+            :br-after? true})
+
 (defn spans
   "Turns x into a collection of spans for layout. Options supported are:
  * kv-indent the amount of spaces by which to indent a value when it appears
@@ -23,7 +45,7 @@
  * coll-indents a map of collection start delimiters (as strings) to the amount
    by which to indent (default: length of the delimiter)."
   [x {:keys [kv-indent coll-indents] :or {kv-indent 2 coll-indents {}}}]
-  (let [delims (into te/delims (map (fn [[s i]] [s (te/opening s i)])) coll-indents)
+  (let [delims (into delims (map (fn [[s i]] [s (opening s i)])) coll-indents)
         kv-open
         {:length 0
          :text ""
@@ -31,9 +53,9 @@
          :start-text ""
          :indent kv-indent}
         meta-open {:length 1
-                   :text "^"
+                   :text "\33[2m^\33[22m"
                    :start-length 1
-                   :start-text "^"
+                   :start-text "\33[2m^\33[22m"
                    :indent kv-indent}]
     (letfn [(coll-spans
               ([x] (coll-spans x [te/space] spans))
@@ -67,8 +89,8 @@
                                                        (ansi s (str "\33[4m" s "\33[24m")))]
                 (instance? unravel.tags.ClojureVar x) [(str "#'" (:name x))]
                 (map? x) (if-some [kv (find x tags/unreachable)]
-                           (concat [(delims "{")] (coll-spans (concat (dissoc x tags/unreachable) [kv]) [te/comma te/space] kv-spans) [(delims "}")])
-                           (concat [(delims "{")] (coll-spans x [te/comma te/space] kv-spans) [(delims "}")]))
+                           (concat [(delims "{")] (coll-spans (concat (dissoc x tags/unreachable) [kv]) [comma te/space] kv-spans) [(delims "}")])
+                           (concat [(delims "{")] (coll-spans x [comma te/space] kv-spans) [(delims "}")]))
                 :else [(pr-str x)]))]
     (spans x))))
 
