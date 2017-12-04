@@ -67,6 +67,7 @@
                 (-> [kv-open] (into (spans k)) (conj te/space) (into (spans v)) (conj te/kv-close))))
             (spans [x]
               (cond
+                (keyword? x) (let [s (str x)] [(ansi s (str "\33[36m" s "\33[m"))]) ; cyan
                 (tagged-literal? x)
                 (case (:tag x)
                   unrepl/meta (let [[m v] (:form x)]

@@ -58,9 +58,9 @@
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
     (terminate! ctx)
-    (ut/cyan (if (some-> ctx :options :flags :packed)
-               #(pp/pprint result :as :unrepl/edn :strict 20 :width (quot (.-columns js/process.stdout) 1.11))
-               #(prn result))))
+    (if (some-> ctx :options :flags :packed)
+      (pp/pprint result :as :unrepl/edn :strict 20 :width (quot (.-columns js/process.stdout) 1.11))
+      (ut/cyan #(prn result))))
   (assoc ctx :pending-eval nil))
 
 (defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ ctx]
