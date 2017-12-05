@@ -78,11 +78,20 @@
                                       s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
                   unrepl/ratio (let [[n d] (:form x)]
                                  (str n "/" d))
-                  (unrepl/lazy-error error) (concat
-                                              [kv-open (ansi (str "#" (pr-str (:tag x)))
-                                                         (str "\33[31m#" (pr-str (:tag x)) "\33[m"))
-                                               te/space]
-                                              (spans (:form x)) [te/kv-close])
+                  unrepl/lazy-error
+                  (concat [kv-open (ansi (str "/lazy-error")
+                                     (str "\33[31m/lazy-error\33[m"))
+                           te/space]
+                    (spans (-> x :form :form :cause))
+                    [te/space
+                     (let [cmd (str "/" (tags/elide (:form x)))]
+                       (ansi cmd (str "\33[31m" cmd "\33[m")))
+                     te/kv-close])
+                  error (concat
+                           [kv-open (ansi (str "#" (pr-str (:tag x)))
+                                      (str "\33[31m#" (pr-str (:tag x)) "\33[m"))
+                            te/space]
+                           (spans (:form x)) [te/kv-close])
                   (concat [kv-open (str "#" (pr-str (:tag x))) te/space] (spans (:form x)) [te/kv-close]))
                 (vector? x) (concat [(delims "[")] (coll-spans x) [(delims "]")])
                 (set? x) (concat [(delims "#{")]

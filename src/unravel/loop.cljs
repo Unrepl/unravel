@@ -55,12 +55,15 @@
   (some-> ctx :aux-out .end)
   (some-> ctx :loader-out .destroy)) ; plain .end hangs
 
+(defn- print-result [ctx result]
+  (if (some-> ctx :options :flags :packed)
+    (pp/pprint result :as :unrepl/edn :strict 20 :width (quot (.-columns js/process.stdout) 1.11))
+    (ut/cyan #(prn result))))
+
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
     (terminate! ctx)
-    (if (some-> ctx :options :flags :packed)
-      (pp/pprint result :as :unrepl/edn :strict 20 :width (quot (.-columns js/process.stdout) 1.11))
-      (ut/cyan #(prn result))))
+    (print-result ctx result))
   (assoc ctx :pending-eval nil))
 
 (defmethod process [:conn :started-eval] [[_ {:keys [actions]}] _ ctx]
@@ -154,8 +157,10 @@ interpreted by the REPL client. The following specials are available:
       (.prompt rl))
     
     (re-matches #"\d+|/" cmd)
-    (if-let [cmd (get @ug/ellipsis-store (if (= cmd "/") @ug/ellipsis-counter  (js/parseInt cmd)))]
-      (send-command ctx (str cmd))
+    (if-some [{:keys [unravel/source] :as m} (get @ug/ellipsis-store (if (= cmd "/") @ug/ellipsis-counter  (js/parseInt cmd)))]
+      (case source
+        :unrepl (send-command ctx (pr-str (:get m)))
+        :unravel (print-result ctx (:value m)))
       (.prompt rl))))
 
 (defn socket-connector

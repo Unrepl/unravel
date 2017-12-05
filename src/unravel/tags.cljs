@@ -9,12 +9,17 @@
 
 (def unreachable (Ellipsis. nil nil))
 
-(defn ellipsis [{:keys [get]}]
-  (if get
+(defn ellipsis [m]
+  (if (:get m)
     (let [counter (swap! ellipsis-counter inc)]
-       (swap! ellipsis-store assoc counter get)
-       (Ellipsis. get counter))
+       (swap! ellipsis-store assoc counter (assoc m :unravel/source :unrepl))
+       (Ellipsis. (:get m) counter))
     unreachable))
+
+(defn elide [value]
+  (let [counter (swap! ellipsis-counter inc)]
+     (swap! ellipsis-store assoc counter {:unravel/source :unravel :value value})
+     counter))
 
 (defrecord ClojureVar [name])
 
