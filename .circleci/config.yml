@@ -14,11 +14,11 @@ jobs:
           key: clojure
       - run: boot -d org.clojure/clojure:1.9.0-alpha17 show --deps
       - run: sudo curl -o /usr/local/bin/lein https://raw.githubusercontent.com/technomancy/leiningen/stable/bin/lein && sudo chmod +x /usr/local/bin/lein
+      - run: lein -v
       - save_cache:
           paths:
             - ~/.m2
           key: clojure
-      - run: lein cljfmt check
       - run: |
               sudo apt-get update && \
               sudo apt-get install -y curl && \
@@ -29,4 +29,4 @@ jobs:
       - run: node --version
       - run: yarn
       - run: scripts/tests
-      - run: lein -v
+      - run: lein cljfmt check
