@@ -72,12 +72,17 @@
                 (case (:tag x)
                   unrepl/meta (let [[m v] (:form x)]
                                 (concat (cons meta-open (spans m)) (cons te/space (spans v)) [te/kv-close]))
-                  unrepl.java/class (spans (:form x)) ; could change color or whatever to distinguish from symbols
+                  unrepl.java/class [(ansi (str (:form x)) (str "\33[33m" (:form x) "\33[m"))] ; to distinguish from symbols
                   unrepl/string (let [[s e] (:form x)
                                       s (pr-str s)
                                       s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
                   unrepl/ratio (let [[n d] (:form x)]
                                  (str n "/" d))
+                  (unrepl/lazy-error error) (concat
+                                              [kv-open (ansi (str "#" (pr-str (:tag x)))
+                                                         (str "\33[31m#" (pr-str (:tag x)) "\33[m"))
+                                               te/space]
+                                              (spans (:form x)) [te/kv-close])
                   (concat [kv-open (str "#" (pr-str (:tag x))) te/space] (spans (:form x)) [te/kv-close]))
                 (vector? x) (concat [(delims "[")] (coll-spans x) [(delims "]")])
                 (set? x) (concat [(delims "#{")]
