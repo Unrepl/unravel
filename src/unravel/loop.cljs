@@ -558,10 +558,10 @@ interpreted by the REPL client. The following specials are available:
       ((:send-input! ctx))
     
       :else
-      (when-not is-pasting
-        (doto ctx
-          check-readable
-          (show-doc false))))
+      (do
+        (check-readable ctx)
+        (when-not is-pasting
+          (show-doc ctx false))))
     (assoc ctx :last-keypress now)))
 
 (defmethod process [:readline :close]
