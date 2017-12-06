@@ -77,7 +77,7 @@
                                       s (pr-str s)
                                       s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
                   unrepl/ratio (let [[n d] (:form x)]
-                                 (str n "/" d))
+                                 [(str n "/" d)])
 
                   unrepl/pattern (let [[n d] (:form x)]
                                    [(pr-str (re-pattern (:form x)))])
