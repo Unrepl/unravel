@@ -88,7 +88,7 @@
                     (spans (-> x :form :form :cause))
                     [te/space
                      (let [cmd (str "/" (tags/elide (:form x)))]
-                       (ansi cmd (str "\33[31m" cmd "\33[m")))
+                       (ansi cmd (str "\33[31m\33[4m" cmd "\33[m")))
                      te/kv-close])
                   error (concat
                            [kv-open (ansi (str "#" (pr-str (:tag x)))
