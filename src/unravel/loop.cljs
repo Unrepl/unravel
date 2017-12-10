@@ -191,7 +191,7 @@ interpreted by the REPL client. The following specials are available:
     (send-aux-command ctx cmd)))
 
 (defn plausible-symbol? [s]
-  (re-matches #"^[*+=?!_?a-zA-Z-.]+(/[*+=?!_?a-zA-Z-.]+)?$" s))
+  (re-matches #"^[<>*+=?!_?a-zA-Z-.]+(/[<>*+=?!_?a-zA-Z-.]+)?$" s))
 
 (defn cut [s n]
   (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
