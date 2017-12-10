@@ -202,35 +202,41 @@ interpreted by the REPL client. The following specials are available:
       (when (or (not= word (:word @state)) full?)
         (swap! state assoc :word word)
         (call-remote ctx
-                     (if full?
-                       (list '->>
-                             (list 'clojure.repl/doc (symbol word))
-                             'with-out-str)
-                       (list '->> (list 'clojure.repl/doc (symbol word))
-                             'with-out-str
-                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                             'rest))
-                     (fn [r]
-                       (if full?
-                         (do
-                           (println)
-                           (.clearScreenDown ostream)
-                           (println r)
-                           (.prompt rl true))
-                         (let [[result more] r]
-                           (when result
-                             (let [pos (._getCursorPos rl)
-                                   lines (str/split-lines (cond-> (str/trimr result)
-                                                                       more
-                                                                       (str "...")))]
-                               (println)
-                               (doseq [line lines]
-                                 (.clearLine ostream)
-                                 (println (cut line 70)))
-                               (.moveCursor (js/require "readline")
-                                            (.-output rl)
-                                            (.-cols pos)
-                                            (- (+ (count lines) 1)))))))))))))
+          (if full?
+            (list '->>
+              (list 'clojure.repl/doc (symbol word))
+              'with-out-str)
+            (list '->> (list 'clojure.repl/doc (symbol word))
+              'with-out-str
+              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                  'rest))
+          (fn [r]
+            (if full?
+              (do
+                (println)
+                (.clearScreenDown ostream)
+                (println r)
+                (.prompt rl true))
+              (let [readline (js/require "readline")
+                    [result more] r]
+                (when result
+                  (let [lines (str/split-lines (cond-> (str/trimr result)
+                                                 more (str "...")))
+                        pos (._getCursorPos rl)
+                        dpos (._getDisplayPos rl (.-line rl))
+                        docstr (str/join "\n" lines)
+                        docpos (._getDisplayPos rl docstr)]
+                    (.moveCursor readline
+                      (.-output rl)
+                      (- (.-cols pos))
+                      (- (.-rows dpos) (.-rows pos)))
+                    (newline)
+                    (.clearScreenDown readline (.-output rl))
+                    (print docstr)
+                    (.moveCursor readline
+                      (.-output rl)
+                      (- (.-cols pos) (.-cols docpos))
+                      (- (.-rows pos) (.-rows docpos) (.-rows dpos) 1))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
