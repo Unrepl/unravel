@@ -52,7 +52,8 @@
   (reset! (:terminating? ctx) true)
   (some-> ctx :conn-out .end)
   (some-> ctx :aux-out .end)
-  (some-> ctx :loader-out .destroy)) ; plain .end hangs
+  (some-> ctx :loader-out .destroy) ; plain .end hangs
+  (some-> ctx :terminate-fn .apply))
 
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
@@ -141,7 +142,7 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj")))
+  (lumo.io/slurp (un/locate "resources" "unrepl" "blob.clj")))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
@@ -578,7 +579,7 @@ interpreted by the REPL client. The following specials are available:
 (defn default-blob-fname []
   (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj"))
 
-(defn start [host port {:keys [blobs] :as options}]
+(defn start [host port terminate-fn {:keys [blobs] :as options}]
   (let [connect (socket-connector host port)
         terminating? (atom false)
         payload (->> (or blobs [(default-blob-fname)])
@@ -591,6 +592,7 @@ interpreted by the REPL client. The following specials are available:
                         :conn-in conn-in
                         :conn-out conn-out
                         :terminating? terminating?
+                        :terminate-fn terminate-fn
                         :callbacks (atom {})
                         :pending-eval nil
                         :state (atom {})
@@ -598,7 +600,7 @@ interpreted by the REPL client. The following specials are available:
                         :banner #(banner host port)
                         :options options
                         :last-keypress (current-time-micros)}
-          (fn [ctx origin msg]
-            (ud/dbug :receive {:origin origin} msg)
-            (process msg origin ctx)))]
+                       (fn [ctx origin msg]
+                         (ud/dbug :receive {:origin origin} msg)
+                         (process msg origin ctx)))]
     (.on conn-in "data" #(sm :conn %))))
