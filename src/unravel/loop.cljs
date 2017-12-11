@@ -193,8 +193,22 @@ interpreted by the REPL client. The following specials are available:
 (defn plausible-symbol? [s]
   (re-matches #"^[<>*+=?!_?a-zA-Z-.]+(/[<>*+=?!_?a-zA-Z-.]+)?$" s))
 
-(defn cut [s n]
-  (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
+(defn bottom-print [rl s]
+  (let [readline (js/require "readline")
+        pos (._getCursorPos rl)
+        dpos (._getDisplayPos rl (.-line rl))
+        spos (._getDisplayPos rl s)]
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos))
+      (- (.-rows dpos) (.-rows pos)))
+    (newline)
+    (.clearScreenDown readline (.-output rl))
+    (print s)
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos) (.-cols spos))
+      (- (.-rows pos) (.-rows spos) (.-rows dpos) 1))))
 
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -217,26 +231,11 @@ interpreted by the REPL client. The following specials are available:
                 (.clearScreenDown ostream)
                 (println r)
                 (.prompt rl true))
-              (let [readline (js/require "readline")
-                    [result more] r]
+              (let [[result more] r]
                 (when result
                   (let [lines (str/split-lines (cond-> (str/trimr result)
-                                                 more (str "...")))
-                        pos (._getCursorPos rl)
-                        dpos (._getDisplayPos rl (.-line rl))
-                        docstr (str/join "\n" lines)
-                        docpos (._getDisplayPos rl docstr)]
-                    (.moveCursor readline
-                      (.-output rl)
-                      (- (.-cols pos))
-                      (- (.-rows dpos) (.-rows pos)))
-                    (newline)
-                    (.clearScreenDown readline (.-output rl))
-                    (print docstr)
-                    (.moveCursor readline
-                      (.-output rl)
-                      (- (.-cols pos) (.-cols docpos))
-                      (- (.-rows pos) (.-rows docpos) (.-rows dpos) 1))))))))))))
+                                                 more (str "...")))]
+                    (bottom-print rl (str/join "\n" lines))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
