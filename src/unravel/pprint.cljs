@@ -74,8 +74,7 @@
                                 (concat (cons meta-open (spans m)) (cons te/space (spans v)) [te/kv-close]))
                   unrepl.java/class [(ansi (str (:form x)) (str "\33[33m" (:form x) "\33[m"))] ; to distinguish from symbols
                   unrepl/string (let [[s e] (:form x)
-                                      s (pr-str s)
-                                      s (subs s 0 (dec (count s)))] (cons (nobr s) (spans e)))
+                                      s (pr-str s)] (cons (nobr s) (spans e)))
                   unrepl/ratio (let [[n d] (:form x)]
                                  [(str n "/" d)])
 
@@ -110,7 +109,7 @@
                            (concat [(delims "{")] (coll-spans (concat (dissoc x tags/unreachable) [kv]) [comma te/space] kv-spans) [(delims "}")])
                            (concat [(delims "{")] (coll-spans x [comma te/space] kv-spans) [(delims "}")]))
                 :else [(pr-str x)]))]
-    (spans x))))
+      (spans x))))
 
 (defmethod core/spans [:text :unrepl/edn] [x to-as opts]
   (spans x opts))
