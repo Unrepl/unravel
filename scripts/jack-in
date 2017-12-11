@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+make_command() {
+    cmd="(do (require 'clojure.core.server) (let [srv (clojure.core.server/start-server {:name :repl :port 0 :accept 'clojure.core.server/repl :server-daemon false})] (println (str \\newline (pr-str [:jack-in/ready {:method :${1}, :port (.getLocalPort srv)}])))))"
+}
+
+if [[ "${1-}" == "--method" ]]; then
+    method="$2"
+elif [[ -e build.boot ]]; then
+        method=boot
+elif [[ -e project.clj ]]; then
+    method=lein
+else
+    method=clojure
+fi
+
+case "$method" in
+    boot)
+        make_command boot
+        exec boot call -e "$cmd" wait
+        ;;
+    lein)
+        make_command lein
+        exec lein trampoline run -m clojure.main -e "$cmd"
+        ;;
+    clojure)
+        make_command clojure
+        exec clojure -e "$cmd"
+        ;;
+    *)
+        echo Unknown method: "$method"
+        exit 1
+esac
+

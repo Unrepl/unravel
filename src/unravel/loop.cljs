@@ -52,7 +52,8 @@
   (reset! (:terminating? ctx) true)
   (some-> ctx :conn-out .end)
   (some-> ctx :aux-out .end)
-  (some-> ctx :loader-out .destroy)) ; plain .end hangs
+  (some-> ctx :loader-out .destroy) ; plain .end hangs
+  (some-> ctx :terminate-fn .apply))
 
 (defmethod process [:conn :eval] [[_ result counter] _ ctx]
   (if (and (some? (:trigger ctx)) (= (:trigger ctx) result))
@@ -141,7 +142,7 @@ interpreted by the REPL client. The following specials are available:
   (println))
 
 (defn read-payload []
-  (lumo.io/slurp (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj")))
+  (lumo.io/slurp (un/locate "resources" "unrepl" "blob.clj")))
 
 (defn special [{:keys [conn-out rl] :as ctx} cmd]
   (cond
@@ -190,10 +191,24 @@ interpreted by the REPL client. The following specials are available:
     (send-aux-command ctx cmd)))
 
 (defn plausible-symbol? [s]
-  (re-matches #"^[*+=?!_?a-zA-Z-.]+(/[*+=?!_?a-zA-Z-.]+)?$" s))
+  (re-matches #"^[<>*+=?!_?a-zA-Z-.]+(/[<>*+=?!_?a-zA-Z-.]+)?$" s))
 
-(defn cut [s n]
-  (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
+(defn bottom-print [rl s]
+  (let [readline (js/require "readline")
+        pos (._getCursorPos rl)
+        dpos (._getDisplayPos rl (.-line rl))
+        spos (._getDisplayPos rl s)]
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos))
+      (- (.-rows dpos) (.-rows pos)))
+    (newline)
+    (.clearScreenDown readline (.-output rl))
+    (print s)
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos) (.-cols spos))
+      (- (.-rows pos) (.-rows spos) (.-rows dpos) 1))))
 
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -201,35 +216,26 @@ interpreted by the REPL client. The following specials are available:
       (when (or (not= word (:word @state)) full?)
         (swap! state assoc :word word)
         (call-remote ctx
-                     (if full?
-                       (list '->>
-                             (list 'clojure.repl/doc (symbol word))
-                             'with-out-str)
-                       (list '->> (list 'clojure.repl/doc (symbol word))
-                             'with-out-str
-                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                             'rest))
-                     (fn [r]
-                       (if full?
-                         (do
-                           (println)
-                           (.clearScreenDown ostream)
-                           (println r)
-                           (.prompt rl true))
-                         (let [[result more] r]
-                           (when result
-                             (let [pos (._getCursorPos rl)
-                                   lines (str/split-lines (cond-> (str/trimr result)
-                                                                       more
-                                                                       (str "...")))]
-                               (println)
-                               (doseq [line lines]
-                                 (.clearLine ostream)
-                                 (println (cut line 70)))
-                               (.moveCursor (js/require "readline")
-                                            (.-output rl)
-                                            (.-cols pos)
-                                            (- (+ (count lines) 1)))))))))))))
+          (if full?
+            (list '->>
+              (list 'clojure.repl/doc (symbol word))
+              'with-out-str)
+            (list '->> (list 'clojure.repl/doc (symbol word))
+              'with-out-str
+              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                  'rest))
+          (fn [r]
+            (if full?
+              (do
+                (println)
+                (.clearScreenDown ostream)
+                (println r)
+                (.prompt rl true))
+              (let [[result more] r]
+                (when result
+                  (let [lines (str/split-lines (cond-> (str/trimr result)
+                                                 more (str "...")))]
+                    (bottom-print rl (str/join "\n" lines))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -558,10 +564,10 @@ interpreted by the REPL client. The following specials are available:
       ((:send-input! ctx))
     
       :else
-      (when-not is-pasting
-        (doto ctx
-          check-readable
-          (show-doc false))))
+      (do
+        (check-readable ctx)
+        (when-not is-pasting
+          (show-doc ctx false))))
     (assoc ctx :last-keypress now)))
 
 (defmethod process [:readline :close]
@@ -578,7 +584,7 @@ interpreted by the REPL client. The following specials are available:
 (defn default-blob-fname []
   (un/join-path (or js/process.env.UNRAVEL_HOME ".") "resources" "unrepl" "blob.clj"))
 
-(defn start [host port {:keys [blobs] :as options}]
+(defn start [host port terminate-fn {:keys [blobs] :as options}]
   (let [connect (socket-connector host port)
         terminating? (atom false)
         payload (->> (or blobs [(default-blob-fname)])
@@ -591,6 +597,7 @@ interpreted by the REPL client. The following specials are available:
                         :conn-in conn-in
                         :conn-out conn-out
                         :terminating? terminating?
+                        :terminate-fn terminate-fn
                         :callbacks (atom {})
                         :pending-eval nil
                         :state (atom {})
@@ -598,7 +605,7 @@ interpreted by the REPL client. The following specials are available:
                         :banner #(banner host port)
                         :options options
                         :last-keypress (current-time-micros)}
-          (fn [ctx origin msg]
-            (ud/dbug :receive {:origin origin} msg)
-            (process msg origin ctx)))]
+                       (fn [ctx origin msg]
+                         (ud/dbug :receive {:origin origin} msg)
+                         (process msg origin ctx)))]
     (.on conn-in "data" #(sm :conn %))))

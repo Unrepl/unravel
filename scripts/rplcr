@@ -1,0 +1,66 @@
+#!/usr/bin/env perl
+#
+# rplcr: Simple HTML templating using perl
+#
+# HTML templating in the spirit of "the simplest thing that could possibly work".
+#
+# Matches lines ending in
+#
+# <!-- $RPLCR$ some_perl_code_goes_here -->
+#
+# where some_perl_code_goes_here is arbitrary perl code that gets
+# applied to the line.
+#
+# Example:
+#
+#   <script src="js/lib.js"></script> <!-- $RPLCR$ s:(js/):$ENV{ASSET_PREFIX}.$1:e -->
+#
+# Used like this:
+#
+#   ASSET_PREFIX=my-asset-id rplcr index.html
+#
+# Or if you want in-place editing:
+#
+#   ASSET_PREFIX=my-asset-id perl -i rplcr index.html
+#
+# Optionally specify the `--keep` argument as a first argument to keep
+# RPLCR comments intact.
+
+if ($ARGV[0] eq "--keep") {
+    $keep = 1;
+    shift;
+}
+else {
+    $keep = 0;
+}
+
+while (<>) {
+    $line = $_;
+    if ($keep) {
+        if ($line =~ /^(.*)(<!--\s+\$RPLCR\$\s+(.*?)-->\s*)$/) {
+            $content = $1;
+            $comment = $2;
+            $code = $3;
+
+            $_ = $1;
+            eval($code);
+            print $_ . $comment;
+        }
+        else {
+            print $line;
+        }
+    }
+    else {
+        if ($line =~ /^(.*)<!--\s+\$RPLCR\$\s+(.*?)-->\s*$/) {
+            $content = $1;
+            $code = $2;
+
+            $_ = $1;
+            eval($code);
+            print "$_\n";
+        }
+        else {
+            print $line;
+        }
+    }
+}

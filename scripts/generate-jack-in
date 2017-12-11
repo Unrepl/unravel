@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# start our_temp_dir: v1
+our_temp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t 'our_temp_dir')
+function cleanup_temp_dir() { rm -rf "$our_temp_dir" ; } && trap "cleanup_temp_dir" EXIT
+# end our_temp_dir
+
+export PAYLOAD="$(cat scripts/jack-in | scripts/stringify)"
+
+scripts/rplcr --keep < src/unravel/jack_in.cljs > "$our_temp_dir/temp.cljs"
+cp "$our_temp_dir/temp.cljs" src/unravel/jack_in.cljs
