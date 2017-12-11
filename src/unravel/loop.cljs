@@ -193,8 +193,22 @@ interpreted by the REPL client. The following specials are available:
 (defn plausible-symbol? [s]
   (re-matches #"^[<>*+=?!_?a-zA-Z-.]+(/[<>*+=?!_?a-zA-Z-.]+)?$" s))
 
-(defn cut [s n]
-  (or (some-> (some->> s (re-matches #"^(.{67})(.{3}).*$") second) (str "...")) s))
+(defn bottom-print [rl s]
+  (let [readline (js/require "readline")
+        pos (._getCursorPos rl)
+        dpos (._getDisplayPos rl (.-line rl))
+        spos (._getDisplayPos rl s)]
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos))
+      (- (.-rows dpos) (.-rows pos)))
+    (newline)
+    (.clearScreenDown readline (.-output rl))
+    (print s)
+    (.moveCursor readline
+      (.-output rl)
+      (- (.-cols pos) (.-cols spos))
+      (- (.-rows pos) (.-rows spos) (.-rows dpos) 1))))
 
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -202,35 +216,26 @@ interpreted by the REPL client. The following specials are available:
       (when (or (not= word (:word @state)) full?)
         (swap! state assoc :word word)
         (call-remote ctx
-                     (if full?
-                       (list '->>
-                             (list 'clojure.repl/doc (symbol word))
-                             'with-out-str)
-                       (list '->> (list 'clojure.repl/doc (symbol word))
-                             'with-out-str
-                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                             'rest))
-                     (fn [r]
-                       (if full?
-                         (do
-                           (println)
-                           (.clearScreenDown ostream)
-                           (println r)
-                           (.prompt rl true))
-                         (let [[result more] r]
-                           (when result
-                             (let [pos (._getCursorPos rl)
-                                   lines (str/split-lines (cond-> (str/trimr result)
-                                                                       more
-                                                                       (str "...")))]
-                               (println)
-                               (doseq [line lines]
-                                 (.clearLine ostream)
-                                 (println (cut line 70)))
-                               (.moveCursor (js/require "readline")
-                                            (.-output rl)
-                                            (.-cols pos)
-                                            (- (+ (count lines) 1)))))))))))))
+          (if full?
+            (list '->>
+              (list 'clojure.repl/doc (symbol word))
+              'with-out-str)
+            (list '->> (list 'clojure.repl/doc (symbol word))
+              'with-out-str
+              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                  'rest))
+          (fn [r]
+            (if full?
+              (do
+                (println)
+                (.clearScreenDown ostream)
+                (println r)
+                (.prompt rl true))
+              (let [[result more] r]
+                (when result
+                  (let [lines (str/split-lines (cond-> (str/trimr result)
+                                                 more (str "...")))]
+                    (bottom-print rl (str/join "\n" lines))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -496,19 +501,17 @@ interpreted by the REPL client. The following specials are available:
     (specify! rl
       Object
       (_line [this]
-        (if (and (re-matches #"\s*" (subs (.-line this) (.-cursor this))) (guess-readable? (.-line this)))
-          (send-input!)
-          (._insertString this "\n")))
+        (ud/dbug :_line (.-line this)))
       (_ttyWrite [this s key]
         (or (and parfix-enabled
-              (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
-          (if
-            (not (or (.-ctrl key) (.-meta key) (.-shift key)))
-            (case (.-name key)
-              "up" (line-up this)
-              "down" (line-down this) 
-              (.call super-_ttyWrite this s key))
-            (.call super-_ttyWrite this s key))))
+                 (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
+            (if
+                (not (or (.-ctrl key) (.-meta key) (.-shift key)))
+              (case (.-name key)
+                "up" (line-up this)
+                "down" (line-down this) 
+                (.call super-_ttyWrite this s key))
+              (.call super-_ttyWrite this s key))))
       (_addHistory [this]
         (let [line (.-line this)]
           (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
@@ -555,9 +558,20 @@ interpreted by the REPL client. The following specials are available:
       (and (.-ctrl key) (= "o" (.-name key)))
       (show-doc ctx true)
       
-      (and (.-ctrl key) (= "j" (.-name key))) ; j like jog (run)
-      ((:send-input! ctx))
-    
+      (= (.-name key) "enter")
+      (do
+        (ud/dbug :enter)
+        (let [rl (:rl ctx)]
+          (._insertString rl "\n")))
+
+      (= (.-name key) "return")
+      (do
+        (ud/dbug :return)
+        (let [rl (:rl ctx)]
+          (if (or (not (str/includes? (.-line rl) "\n")) (guess-readable? (.-line rl)))
+            ((:send-input! ctx))
+            (._insertString rl "\n"))))
+
       :else
       (do
         (check-readable ctx)

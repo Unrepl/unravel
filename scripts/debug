@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# start our_temp_dir: v1
+our_temp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t 'our_temp_dir')
+function cleanup_temp_dir() { rm -rf "$our_temp_dir" ; } && trap "cleanup_temp_dir" EXIT
+# end our_temp_dir
+
+our_project_root="$(dirname "${BASH_SOURCE[0]}")/.."
+
+touch $our_temp_dir/stderr.log
+
+tmux \
+    set -g mouse on \; \
+    new-session -d "$our_project_root/scripts/run --debug 2>$our_temp_dir/stderr.log"\; split-window -h -d "tail -f $our_temp_dir/stderr.log"\; attach-session
