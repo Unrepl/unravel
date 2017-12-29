@@ -133,10 +133,6 @@ duplexer2@~0.1.4:
   dependencies:
     readable-stream "^2.0.2"
 
-earcut@2.1.2:
-  version "2.1.2"
-  resolved "https://registry.yarnpkg.com/earcut/-/earcut-2.1.2.tgz#542add0ca3a7b713452720e1d053937d3daf3784"
-
 ecc-jsbn@~0.1.1:
   version "0.1.1"
   resolved "https://registry.yarnpkg.com/ecc-jsbn/-/ecc-jsbn-0.1.1.tgz#0fc73a9ed5f0d53c38193398523ef7e543777505"
@@ -320,10 +316,6 @@ listenercount@~1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/listenercount/-/listenercount-1.0.1.tgz#84c8a72ab59c4725321480c975e6508342e70937"
 
-lodash@4.17.4:
-  version "4.17.4"
-  resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.4.tgz#78203a4d1c328ae1d86dca6460e369b57f4055ae"
-
 lumo-cljs@1.7.0:
   version "1.7.0"
   resolved "https://registry.yarnpkg.com/lumo-cljs/-/lumo-cljs-1.7.0.tgz#d9d70185b22683b4aa5e53c4189e26c22d51b609"
@@ -331,14 +323,6 @@ lumo-cljs@1.7.0:
     jszip "2.6.1"
     progress "^2.0.0"
     request "2.81.0"
-
-lumo@^0.20.6:
-  version "0.20.7"
-  resolved "https://registry.yarnpkg.com/lumo/-/lumo-0.20.7.tgz#a1cf61be6fa1bb235d05493ea849529c7c48289a"
-  dependencies:
-    earcut "2.1.2"
-    lodash "4.17.4"
-    rbush "2.0.1"
 
 mime-db@~1.27.0:
   version "1.27.0"
@@ -380,6 +364,10 @@ os-homedir@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/os-homedir/-/os-homedir-1.0.2.tgz#ffbc4988336e0e833de0c168c7ef152121aa7fb3"
 
+packed-printer@^0.3.0:
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/packed-printer/-/packed-printer-0.3.0.tgz#7176be03879ba4f248f8f302e5489f234694cdb2"
+
 pako@~1.0.2:
   version "1.0.5"
   resolved "https://registry.yarnpkg.com/pako/-/pako-1.0.5.tgz#d2205dfe5b9da8af797e7c163db4d1f84e4600bc"
@@ -407,16 +395,6 @@ punycode@^1.4.1:
 qs@~6.4.0:
   version "6.4.0"
   resolved "https://registry.yarnpkg.com/qs/-/qs-6.4.0.tgz#13e26d28ad6b0ffaa91312cd3bf708ed351e7233"
-
-quickselect@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/quickselect/-/quickselect-1.0.0.tgz#02630818f9aae4ecab26f0103f98d061c17c58f3"
-
-rbush@2.0.1:
-  version "2.0.1"
-  resolved "https://registry.yarnpkg.com/rbush/-/rbush-2.0.1.tgz#4cfaca28c3064bc0ee75431a1b79990e875eefa9"
-  dependencies:
-    quickselect "^1.0.0"
 
 readable-stream@^2.0.2:
   version "2.3.3"
