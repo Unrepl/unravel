@@ -41,11 +41,12 @@
 (defmulti process (fn [command origin ctx] [origin (first command)]))
 
 (defmethod process [:conn :prompt] [[_ opts] _ {:keys [rl state] :as ctx}]
-  (let [ns (:form (get opts 'clojure.core/*ns*))]
-    (when ns
-      (swap! state assoc :ns ns)
-      (set-prompt ctx ns false))
-    (some-> rl (.prompt true)))
+  (when (ut/interactive?)
+    (let [ns (:form (get opts 'clojure.core/*ns*))]
+      (when ns
+        (swap! state assoc :ns ns)
+        (set-prompt ctx ns false))
+      (some-> rl (.prompt true))))
   ctx)
 
 (defn- terminate! [ctx]
@@ -501,9 +502,7 @@ interpreted by the REPL client. The following specials are available:
     (specify! rl
       Object
       (_line [this]
-        (if (and (re-matches #"\s*" (subs (.-line this) (.-cursor this))) (guess-readable? (.-line this)))
-          (send-input!)
-          (._insertString this "\n")))
+        (ud/dbug :_line (.-line this)))
       (_ttyWrite [this s key]
         (or (and parfix-enabled
               (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
@@ -541,7 +540,7 @@ interpreted by the REPL client. The following specials are available:
 
 (defmethod process [:readline :line]
   [[_ line] _ ctx]
-  (when (ut/rich?)
+  (when (and (ut/interactive?) (ut/rich?))
     (doto (:ostream ctx) .clearLine .clearScreenDown))
   (if-let [[_ cmd] (re-matches #"^\s*#__([a-zA-Z0-9]*)?\s*$" line)]
     (special ctx cmd)
@@ -554,21 +553,30 @@ interpreted by the REPL client. The following specials are available:
 
 (defmethod process [:readline :keypress]
   [[_ [chunk key]] _ ctx]
-  (let [now (current-time-micros)
-        is-pasting (< (- now (:last-keypress ctx)) 10000)]
-    (cond
-      (and (.-ctrl key) (= "o" (.-name key)))
-      (show-doc ctx true)
-      
-      (and (.-ctrl key) (= "j" (.-name key))) ; j like jog (run)
-      ((:send-input! ctx))
-    
-      :else
-      (do
-        (check-readable ctx)
-        (when-not is-pasting
-          (show-doc ctx false))))
-    (assoc ctx :last-keypress now)))
+  (if (ut/interactive?)
+    (let [now (current-time-micros)
+          is-pasting (< (- now (:last-keypress ctx)) 10000)]
+      (cond
+        (and (.-ctrl key) (= "o" (.-name key)))
+        (show-doc ctx true)
+
+        (= (.-name key) "enter")
+        (let [rl (:rl ctx)]
+          (._insertString rl "\n"))
+
+        (= (.-name key) "return")
+        (let [rl (:rl ctx)]
+          (if (and (guess-readable? (.-line rl)))
+            ((:send-input! ctx))
+            (._insertString rl "\n")))
+
+        :else
+        (do
+          (check-readable ctx)
+          (when-not is-pasting
+            (show-doc ctx false))))
+      (assoc ctx :last-keypress now))
+    ctx))
 
 (defmethod process [:readline :close]
   [_ _ ctx]
