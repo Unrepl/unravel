@@ -159,6 +159,10 @@ See [TODO.md](TODO.md) for a list of planned improvements. Unravel is developed 
 
 Join the `#unrepl` channel in the [Clojurians slack](http://clojurians.net/)!
 
+## Contributing
+
+See [contributing.md].
+
 ## Copyright
 
 (c) 2017 Paulus Esterhazy
