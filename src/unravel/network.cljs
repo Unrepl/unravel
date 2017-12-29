@@ -20,16 +20,16 @@
         ready? (atom false)
         transform (fn [chunk enc cb]
                     (this-as this
-                      (if @ready?
-                        (cb nil chunk)
-                        (do
-                          (.append buf (.toString chunk "utf8"))
-                          (let [s (.toString buf)
-                                idx (.indexOf s sentinel)]
-                            (when (not= -1 idx)
-                              (reset! ready? true)
-                              (.push this (subs s idx)))
-                            (cb))))))]
+                             (if @ready?
+                               (cb nil chunk)
+                               (do
+                                 (.append buf (.toString chunk "utf8"))
+                                 (let [s (.toString buf)
+                                       idx (.indexOf s sentinel)]
+                                   (when (not= -1 idx)
+                                     (reset! ready? true)
+                                     (.push this (subs s idx)))
+                                   (cb))))))]
     (Transform. #js {:transform transform})))
 
 (defn make-edn-stream
@@ -41,21 +41,21 @@
         done? (atom false)
         transform (fn [chunk enc cb]
                     (this-as this
-                      (.append buf (.toString chunk "utf8"))
-                      (loop []
-                        (when-not @done?
-                          (when-let [[v rst] (ul/safe-read-string (.toString buf))]
-                            (when (and (vector? v) (= :bye (first v)))
-                              (reset! done? true))
-                            (when (and (not @ready?) (vector? v) (= :unrepl/hello (first v)))
-                              (reset! ready? true))
-                            (.push this v)
-                            (.clear buf)
-                            (when rst
-                              (do
-                                (.append buf rst)
-                                (recur))))))
-                      (cb)))]
+                             (.append buf (.toString chunk "utf8"))
+                             (loop []
+                               (when-not @done?
+                                 (when-let [[v rst] (ul/safe-read-string (.toString buf))]
+                                   (when (and (vector? v) (= :bye (first v)))
+                                     (reset! done? true))
+                                   (when (and (not @ready?) (vector? v) (= :unrepl/hello (first v)))
+                                     (reset! ready? true))
+                                   (.push this v)
+                                   (.clear buf)
+                                   (when rst
+                                     (do
+                                       (.append buf rst)
+                                       (recur))))))
+                             (cb)))]
     (Transform. #js {:readableObjectMode true
                      :transform transform})))
 

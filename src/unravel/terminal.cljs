@@ -5,7 +5,7 @@
 
 (defn- with-sgr [code]
   (let [code (str "\33[" code "m")]
-    (if (rich?) 
+    (if (rich?)
       (fn [f]
         (try
           (.write js/process.stdout code)

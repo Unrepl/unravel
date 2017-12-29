@@ -151,7 +151,7 @@ interpreted by the REPL client. The following specials are available:
     (do
       (help)
       (.prompt rl))
-    
+
     (or (nil? cmd) (re-matches #"^\d*$" cmd))
     (if-let [cmd (get @ug/ellipsis-store (or (some-> cmd js/parseInt) @ug/ellipsis-counter))]
       (send-command ctx (str cmd))
@@ -163,24 +163,24 @@ interpreted by the REPL client. The following specials are available:
   [host port]
   (fn connect
     ([blob terminating?]
-      (connect blob terminating? "[:unrepl/hello"))
+     (connect blob terminating? "[:unrepl/hello"))
     ([blob terminating? sync-string]
-      (let [conn (.Socket. un/net)]
-        {:chars-out conn
-         :edn-in (-> (doto conn
-                       (.connect port
-                         host
-                         (fn []
-                           (when-not @terminating?
-                             (.setNoDelay conn true)
-                             (ud/dbug :connect (count blob))
-                             (.write conn blob)
-                             (.write conn "\n"))))
-                       (.on "error" (fn [err]
-                                      (println "Socket error:" (pr-str err))
-                                      (js/process.exit 1))))
-                   (.pipe (uw/make-skip sync-string))
-                   (.pipe (uw/make-edn-stream)))}))))
+     (let [conn (.Socket. un/net)]
+       {:chars-out conn
+        :edn-in (-> (doto conn
+                      (.connect port
+                                host
+                                (fn []
+                                  (when-not @terminating?
+                                    (.setNoDelay conn true)
+                                    (ud/dbug :connect (count blob))
+                                    (.write conn blob)
+                                    (.write conn "\n"))))
+                      (.on "error" (fn [err]
+                                     (println "Socket error:" (pr-str err))
+                                     (js/process.exit 1))))
+                    (.pipe (uw/make-skip sync-string))
+                    (.pipe (uw/make-edn-stream)))}))))
 
 (defn call-remote [{:keys [rl callbacks] :as ctx} form cb]
   (let [eval-id (str (gensym))
@@ -200,16 +200,16 @@ interpreted by the REPL client. The following specials are available:
         dpos (._getDisplayPos rl (.-line rl))
         spos (._getDisplayPos rl s)]
     (.moveCursor readline
-      (.-output rl)
-      (- (.-cols pos))
-      (- (.-rows dpos) (.-rows pos)))
+                 (.-output rl)
+                 (- (.-cols pos))
+                 (- (.-rows dpos) (.-rows pos)))
     (newline)
     (.clearScreenDown readline (.-output rl))
     (print s)
     (.moveCursor readline
-      (.-output rl)
-      (- (.-cols pos) (.-cols spos))
-      (- (.-rows pos) (.-rows spos) (.-rows dpos) 1))))
+                 (.-output rl)
+                 (- (.-cols pos) (.-cols spos))
+                 (- (.-rows pos) (.-rows spos) (.-rows dpos) 1))))
 
 (defn show-doc [{:keys [rl ostream state] :as ctx} full?]
   (when-let [word (ul/find-word-at (.-line rl) (max 0 (dec (.-cursor rl))))]
@@ -217,26 +217,26 @@ interpreted by the REPL client. The following specials are available:
       (when (or (not= word (:word @state)) full?)
         (swap! state assoc :word word)
         (call-remote ctx
-          (if full?
-            (list '->>
-              (list 'clojure.repl/doc (symbol word))
-              'with-out-str)
-            (list '->> (list 'clojure.repl/doc (symbol word))
-              'with-out-str
-              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
-                  'rest))
-          (fn [r]
-            (if full?
-              (do
-                (println)
-                (.clearScreenDown ostream)
-                (println r)
-                (.prompt rl true))
-              (let [[result more] r]
-                (when result
-                  (let [lines (str/split-lines (cond-> (str/trimr result)
-                                                 more (str "...")))]
-                    (bottom-print rl (str/join "\n" lines))))))))))))
+                     (if full?
+                       (list '->>
+                             (list 'clojure.repl/doc (symbol word))
+                             'with-out-str)
+                       (list '->> (list 'clojure.repl/doc (symbol word))
+                             'with-out-str
+                             '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
+                             'rest))
+                     (fn [r]
+                       (if full?
+                         (do
+                           (println)
+                           (.clearScreenDown ostream)
+                           (println r)
+                           (.prompt rl true))
+                         (let [[result more] r]
+                           (when result
+                             (let [lines (str/split-lines (cond-> (str/trimr result)
+                                                            more (str "...")))]
+                               (bottom-print rl (str/join "\n" lines))))))))))))
 
 (defn complete [ctx line cb]
   (let [word (or (ul/find-word-at line (count line)) "")
@@ -264,46 +264,46 @@ interpreted by the REPL client. The following specials are available:
 (defn- guess-edit-state [line]
   (let [state #js {:stack #js [] :mode :normal}]
     (reduce
-      (fn [_ i]
-        (let [ch (nth line i)]
-          (case (.-mode state)
-            :normal
-            (case ch
-              "[" (-> state .-stack (.push "]"))
-              "(" (-> state .-stack (.push ")"))
-              "{" (-> state .-stack (.push "}"))
-              ("]" ")" "}")
-              (if-some [expected (-> state .-stack .pop)]
-                (when-not (= expected ch)
-                  (doto state
-                    (-> .-stack (.push expected))
-                    (-> .-mode (set! :error))
-                    (-> .-error (set! {:cause :unexpected-closing-delimiter
-                                       :expected expected
-                                       :pos i})))
-                  (reduced nil))
-                (do
-                  (doto state
-                    (-> .-mode (set! :error))
-                    (-> .-error (set! {:cause :unexpected-closing-delimiter
-                                       :pos i})))
-                  (reduced nil)))
-              \\ (set! (.-mode state) :normal-esc)
-              \" (set! (.-mode state) :string)
-              \; (set! (.-mode state) :comment)
+     (fn [_ i]
+       (let [ch (nth line i)]
+         (case (.-mode state)
+           :normal
+           (case ch
+             "[" (-> state .-stack (.push "]"))
+             "(" (-> state .-stack (.push ")"))
+             "{" (-> state .-stack (.push "}"))
+             ("]" ")" "}")
+             (if-some [expected (-> state .-stack .pop)]
+               (when-not (= expected ch)
+                 (doto state
+                   (-> .-stack (.push expected))
+                   (-> .-mode (set! :error))
+                   (-> .-error (set! {:cause :unexpected-closing-delimiter
+                                      :expected expected
+                                      :pos i})))
+                 (reduced nil))
+               (do
+                 (doto state
+                   (-> .-mode (set! :error))
+                   (-> .-error (set! {:cause :unexpected-closing-delimiter
+                                      :pos i})))
+                 (reduced nil)))
+             \\ (set! (.-mode state) :normal-esc)
+             \" (set! (.-mode state) :string)
+             \; (set! (.-mode state) :comment)
              nil)
-            :string
-            (case ch
-              \" (set! (.-mode state) :normal)
-              \\ (set! (.-mode state) :string-esc)
-              nil)
-            :string-esc (set! (.-mode state) :string)
-            :normal-esc (set! (.-mode state) :normal)
-            :comment
+           :string
+           (case ch
+             \" (set! (.-mode state) :normal)
+             \\ (set! (.-mode state) :string-esc)
+             nil)
+           :string-esc (set! (.-mode state) :string)
+           :normal-esc (set! (.-mode state) :normal)
+           :comment
            (case ch
              (\newline \return) (set! (.-mode state) :normal)
              nil))))
-      nil (range (count line)))
+     nil (range (count line)))
     state))
 
 (defn- guess-readable? [line]
@@ -333,11 +333,11 @@ interpreted by the REPL client. The following specials are available:
                (try
                  (vreset! reentrant-calls [])
                  (vreset! state
-                   (loop [state (apply rf @state args)]
-                     (if-some [calls (seq @reentrant-calls)]
-                       (do (vreset! reentrant-calls [])
-                         (recur (reduce #(apply rf %1 %2) state calls)))
-                       state)))
+                          (loop [state (apply rf @state args)]
+                            (if-some [calls (seq @reentrant-calls)]
+                              (do (vreset! reentrant-calls [])
+                                  (recur (reduce #(apply rf %1 %2) state calls)))
+                              state)))
                  (finally
                    (vreset! reentrant-calls nil)))))]
     (vswap! state assoc :sm sm)
@@ -352,61 +352,61 @@ interpreted by the REPL client. The following specials are available:
     (cond-> (into ctx {:session-info session-info :aux-in aux-in :aux-out aux-out})
       (seq cp)
       (assoc :loader-out
-        (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[:unrepl.jvm.side-loader/hello")]
-          (.on loader-in "data"
-            (fn [[tag payload :as msg]]
-              (case tag
-                (:class :resource)
-                (let [resource (str (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))
-                      file (str/replace resource "/" (.-sep un/path))
-                      lookup (fn lookup [cp]
-                               (if-some [[path & cp] (seq cp)]
-                                 (.stat un/fs path (fn [err stats]
-                                                     (cond
-                                                       err (lookup cp)
-                                                       
+             (let [{loader-in :edn-in loader-out :chars-out} (connect (pr-str start-side-loader) (:terminating? ctx) "[:unrepl.jvm.side-loader/hello")]
+               (.on loader-in "data"
+                    (fn [[tag payload :as msg]]
+                      (case tag
+                        (:class :resource)
+                        (let [resource (str (if (= :class tag) (str (str/replace payload "." "/") ".class") payload))
+                              file (str/replace resource "/" (.-sep un/path))
+                              lookup (fn lookup [cp]
+                                       (if-some [[path & cp] (seq cp)]
+                                         (.stat un/fs path (fn [err stats]
+                                                             (cond
+                                                               err (lookup cp)
+
                                                        ; directory entry on the classpath
-                                                       (.isDirectory stats)
-                                                       (.readFile un/fs (un/join-path path file)
-                                                         (fn [err bytes]
-                                                           (if err
-                                                             (lookup cp)
-                                                             (.write loader-out (prn-str (.toString bytes "base64"))))))
-                                                     
-                                                       :else ; assumes zip (jar) file
-                                                       (-> (.file un/open-jar path)
-                                                         (.then (fn [d]
-                                                                  (if-some [bytes (->> d .-files (some #(when (= file (.-path %))
-                                                                                                          (.buffer %))))]
-                                                                    (.then bytes (fn [bytes]
-                                                                                   (.write loader-out (prn-str (.toString bytes "base64")))))
-                                                                    (lookup cp))))))))
-                                 (.write loader-out "nil\n")))]
-                  (if (re-find #"^/|(/|^)\.\.(/|$)|\\" resource) ; say no to injection!
-                    (.write loader-out "nil\n")
-                    (lookup cp)))
-                (ud/dbug :sideloader-ignoring msg))))
-          loader-out)))))
+                                                               (.isDirectory stats)
+                                                               (.readFile un/fs (un/join-path path file)
+                                                                          (fn [err bytes]
+                                                                            (if err
+                                                                              (lookup cp)
+                                                                              (.write loader-out (prn-str (.toString bytes "base64"))))))
+
+                                                               :else ; assumes zip (jar) file
+                                                               (-> (.file un/open-jar path)
+                                                                   (.then (fn [d]
+                                                                            (if-some [bytes (->> d .-files (some #(when (= file (.-path %))
+                                                                                                                    (.buffer %))))]
+                                                                              (.then bytes (fn [bytes]
+                                                                                             (.write loader-out (prn-str (.toString bytes "base64")))))
+                                                                              (lookup cp))))))))
+                                         (.write loader-out "nil\n")))]
+                          (if (re-find #"^/|(/|^)\.\.(/|$)|\\" resource) ; say no to injection!
+                            (.write loader-out "nil\n")
+                            (lookup cp)))
+                        (ud/dbug :sideloader-ignoring msg))))
+               loader-out)))))
 
 (defn invoke [template params]
   (pr-str
-    (clojure.walk/postwalk
-      (fn [x]
-        (if (and (tagged-literal? x) (= (:tag x) 'unrepl/param))
-          (get params (:form x))
-          x))
-      template)))
+   (clojure.walk/postwalk
+    (fn [x]
+      (if (and (tagged-literal? x) (= (:tag x) 'unrepl/param))
+        (get params (:form x))
+        x))
+    template)))
 
 (defmethod process [:aux :unrepl/hello]
   [[_ {:as aux-session-info {:keys [print-limits]} :actions}] _ {:keys [sm aux-out] :as ctx}]
   (ud/dbug :aux-connection-ready)
   (.createInterface un/readline
-    #js{:input js/process.stdin
-        :output js/process.stdout
-        :path (un/join-path (un/os-homedir) ".unravel" "history")
-        :maxLength 1000
-        :completer (fn [line cb] (sm :readline [:complete [line cb]]))
-        :next (fn [rl] (sm :readline [:ready rl]))})
+                    #js{:input js/process.stdin
+                        :output js/process.stdout
+                        :path (un/join-path (un/os-homedir) ".unravel" "history")
+                        :maxLength 1000
+                        :completer (fn [line cb] (sm :readline [:complete [line cb]]))
+                        :next (fn [rl] (sm :readline [:ready rl]))})
   (ud/dbug :aux-set-limits)
   (uw/send! aux-out (invoke print-limits {:unrepl.print/string-length 0xFFFFffff}))
   ctx)
@@ -446,18 +446,18 @@ interpreted by the REPL client. The following specials are available:
       (case s
         "\r" (when-not (re-matches #"\s*" (subs (.-line rl) (.-cursor rl)))
                (let [n (-> edit-state .-stack .-length)]
-                (doto rl
-                  (._insertString "\n")
-                  (cond-> (pos? n) (._insertString (str/join (repeat n "  ")))))))
-        ("(" "[" "{" "\"" ";") (let [pair (case s "(" "()" "[" "[]" "{" "{}" "\"" "\"\"" ";" ";\n")] 
-                                (doto rl
-                                  (._insertString pair)
-                                  (._moveCursor -1)))
+                 (doto rl
+                   (._insertString "\n")
+                   (cond-> (pos? n) (._insertString (str/join (repeat n "  ")))))))
+        ("(" "[" "{" "\"" ";") (let [pair (case s "(" "()" "[" "[]" "{" "{}" "\"" "\"\"" ";" ";\n")]
+                                 (doto rl
+                                   (._insertString pair)
+                                   (._moveCursor -1)))
         (")" "]" "}") (when-some [[_ del] (re-find (re-pattern (str "^(\\s+)?\\" s)) post)]
                         (doto rl
                           (cond-> del
-                            (doto 
-                              (-> .-line (set! (str pre (subs post (count del)))))
+                            (doto
+                             (-> .-line (set! (str pre (subs post (count del)))))
                               ._refreshLine))
                           (._moveCursor 1)))
         "\u007F" (when-some [[open p] (re-find #"#?([({\[])$" pre)]
@@ -466,28 +466,28 @@ interpreted by the REPL client. The following specials are available:
                        (["(" ")"] ["[" "]"] ["{" "}"])
                        (doto rl
                          (-> .-line (set! (str (subs pre 0 (- (count pre) (count open)))
-                                            (subs post 0 i) (subs post (inc i)))))
+                                               (subs post 0 i) (subs post (inc i)))))
                          ._refreshLine
                          (._moveCursor (- (count open))))
                        nil)))
         nil)
-      
+
       :string
       (case s
         "\"" (if (= \" (aget post 0))
                (doto rl (._moveCursor 1))
                (doto rl (._insertString "\"  \"") (._moveCursor -2))) ; split
         nil)
-      
+
       :comment
       (case s
         "\r" (let [trail (re-find #"^[^\n\r]*" post)]
                (when-not (re-matches #"\s*" trail)
                  (let [indent (count (second (re-find #"([^\n\r;]*);[^\n\r]*$" pre)))]
                    (doto rl (._insertString (str "\n" (apply str (repeat indent " ")) "; "))))))
-        
+
         nil)
-      
+
       nil)))
 
 (defmethod process [:readline :ready]
@@ -500,32 +500,32 @@ interpreted by the REPL client. The following specials are available:
         super-_historyPrev (.-_historyPrev rl)
         super-_historyNext (.-_historyNext rl)]
     (specify! rl
-      Object
-      (_line [this]
-        (ud/dbug :_line (.-line this)))
-      (_ttyWrite [this s key]
-        (or (and parfix-enabled
-              (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
-          (if
-            (not (or (.-ctrl key) (.-meta key) (.-shift key)))
-            (case (.-name key)
-              "up" (line-up this)
-              "down" (line-down this) 
-              (.call super-_ttyWrite this s key))
-            (.call super-_ttyWrite this s key))))
-      (_addHistory [this]
-        (let [line (.-line this)]
-          (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
-          (.call super-_addHistory this)
-          (set! (.-line this) line)))
-      (_historyPrev [this]
-        (.call super-_historyPrev this)
-        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
-        (._refreshLine this))
-      (_historyNext [this]
-        (.call super-_historyNext this)
-        (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
-        (._refreshLine this)))
+              Object
+              (_line [this]
+                     (ud/dbug :_line (.-line this)))
+              (_ttyWrite [this s key]
+                         (or (and parfix-enabled
+                                  (parfix rl (subs (.-line rl) 0 (.-cursor rl)) (subs (.-line rl) (.-cursor rl)) s))
+                             (if
+                              (not (or (.-ctrl key) (.-meta key) (.-shift key)))
+                               (case (.-name key)
+                                 "up" (line-up this)
+                                 "down" (line-down this)
+                                 (.call super-_ttyWrite this s key))
+                               (.call super-_ttyWrite this s key))))
+              (_addHistory [this]
+                           (let [line (.-line this)]
+                             (set! (.-line this) (str/join "\uE7C7" (str/split line #"\r\n|\r|\n")))
+                             (.call super-_addHistory this)
+                             (set! (.-line this) line)))
+              (_historyPrev [this]
+                            (.call super-_historyPrev this)
+                            (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+                            (._refreshLine this))
+              (_historyNext [this]
+                            (.call super-_historyNext this)
+                            (set! (.-line this) (str/join "\n" (str/split (.-line this) #"\uE7C7")))
+                            (._refreshLine this)))
     (when-some [ns (some-> ctx :state deref :ns)]
       (set-prompt ctx ns false)
       (.prompt rl))
