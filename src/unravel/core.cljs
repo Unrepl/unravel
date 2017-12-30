@@ -22,10 +22,10 @@
   (let [switch (fn [test-fn kw]
                  (when (test-fn arg)
                    [(assoc m kw true) (rest args)]))
-        arg (fn [test-fn kw]
-              (when (test-fn arg)
-                (assert (some? nxt) "Needs parameter")
-                [(assoc m kw nxt) (rest (rest args))]))
+        single (fn [test-fn kw]
+                 (when (test-fn arg)
+                   (assert (some? nxt) "Needs parameter")
+                   [(assoc m kw nxt) (rest (rest args))]))
         mult (fn mult
                ([test-fn kw] (mult test-fn kw [] identity))
                ([test-fn kw empty-coll] (mult test-fn kw empty-coll identity))
@@ -36,7 +36,7 @@
     (or
      (switch #{"--version"} :version?)
      (switch #{"--debug"} :debug?)
-     (arg #{"--method"} :method)
+     (single #{"--method"} :method)
      (mult #{"--classpath" "-c"} :cp)
      (mult #{"--blob"} :blobs)
      (mult #{"--flag"} :flags #{} keyword))))
