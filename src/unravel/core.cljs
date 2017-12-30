@@ -65,8 +65,6 @@
         (recur (update m :positional (fn [xs] (conj (or xs []) arg)))
                (rest args))))))
 
-
-
 (defn jack-in [method cb]
   (let [cmd (cond-> ["-c" unravel.jack-in/payload]
               method
