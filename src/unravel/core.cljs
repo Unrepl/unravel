@@ -16,6 +16,13 @@
   (println "Unravel" uv/version (str "(Lumo " lumo.core/*lumo-version* ")"))
   (js/process.exit 0))
 
+(def help-text
+  "Syntax: unravel [--debug] [-c|--classpath <paths>] [--blob blob1 [--blob blob2 ...]] [--flag flag1 [--flag --flag2 ...]] [<host> <port>]\n        unravel --version")
+
+(defn print-help! []
+  (println help-text)
+  (js/process.exit 0))
+
 (defn init [])
 
 (defn parse-arg [m [arg nxt :as args]]
@@ -37,6 +44,7 @@
      (switch #{"--version"} :version?)
      (switch #{"--debug"} :debug?)
      (single #{"--method"} :method)
+     (switch #{"--help"} :help?)
      (mult #{"--classpath" "-c"} :cp)
      (mult #{"--blob"} :blobs)
      (mult #{"--flag"} :flags #{} keyword))))
@@ -57,8 +65,7 @@
         (recur (update m :positional (fn [xs] (conj (or xs []) arg)))
                (rest args))))))
 
-(def help-text
-  "Syntax: unravel [--debug] [-c|--classpath <paths>] [--blob blob1 [--blob blob2 ...]] [--flag flag1 [--flag --flag2 ...]] [<host> <port>]\n        unravel --version")
+
 
 (defn jack-in [method cb]
   (let [cmd (cond-> ["-c" unravel.jack-in/payload]
@@ -95,8 +102,14 @@
 
 (defn -main [& more]
   (init)
-  (let [{:keys [version? debug? positional method] :as args} (parse-args more)]
+  (let [{:keys [version?
+                help?
+                debug?
+                method
+                positional] :as args}
+        (parse-args more)]
     (when version? (print-version!))
+    (when help? (print-help!))
     (when debug? (reset! ud/debug? true))
     (let [jack-in? (case (count positional)
                      2 false

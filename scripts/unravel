@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-exec "scripts/run" "$@"
+our_project_root="$(dirname "${BASH_SOURCE[0]}")/.."
+
+exec "$our_project_root/scripts/run" "$@"

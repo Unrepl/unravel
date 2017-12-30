@@ -3,7 +3,7 @@
 export UNRAVEL_HOME="${UNRAVEL_HOME:-$(npm -g root)/unravel-repl}"
 export NODE_PATH="${UNRAVEL_HOME}/node_modules"
 
-unravel_version="0.2.2"
+unravel_version="0.3.0-beta"
 dot_dir="$HOME/.unravel"
 cache_dir="${dot_dir}/cache/${unravel_version}"
 
