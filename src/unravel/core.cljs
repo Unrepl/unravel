@@ -22,6 +22,10 @@
   (let [switch (fn [test-fn kw]
                  (when (test-fn arg)
                    [(assoc m kw true) (rest args)]))
+        arg (fn [test-fn kw]
+              (when (test-fn arg)
+                (assert (some? nxt) "Needs parameter")
+                [(assoc m kw nxt) (rest (rest args))]))
         mult (fn mult
                ([test-fn kw] (mult test-fn kw [] identity))
                ([test-fn kw empty-coll] (mult test-fn kw empty-coll identity))
@@ -32,6 +36,7 @@
     (or
      (switch #{"--version"} :version?)
      (switch #{"--debug"} :debug?)
+     (arg #{"--method"} :method)
      (mult #{"--classpath" "-c"} :cp)
      (mult #{"--blob"} :blobs)
      (mult #{"--flag"} :flags #{} keyword))))
@@ -55,10 +60,15 @@
 (def help-text
   "Syntax: unravel [--debug] [-c|--classpath <paths>] [--blob blob1 [--blob blob2 ...]] [--flag flag1 [--flag --flag2 ...]] [<host> <port>]\n        unravel --version")
 
-(defn jack-in [cb]
-  (let [child (.spawn (js/require "child_process")
+(defn jack-in [method cb]
+  (let [cmd (cond-> ["-c" unravel.jack-in/payload]
+              method
+              (into ["--" ;; need to pass extra padding arg because bash is weird
+                     "--method"
+                     method]))
+        child (.spawn (js/require "child_process")
                       "bash"
-                      #js ["-c" unravel.jack-in/payload])
+                      (into-array cmd))
         waiting? (atom true)
         terminate-fn (fn terminate-fn []
                        (.kill child))
@@ -85,7 +95,7 @@
 
 (defn -main [& more]
   (init)
-  (let [{:keys [version? debug? positional] :as args} (parse-args more)]
+  (let [{:keys [version? debug? positional method] :as args} (parse-args more)]
     (when version? (print-version!))
     (when debug? (reset! ud/debug? true))
     (let [jack-in? (case (count positional)
@@ -98,5 +108,5 @@
                                terminate-fn
                                args))]
       (if jack-in?
-        (jack-in (fn [port terminate-fn] (start-fn "localhost" port terminate-fn)))
+        (jack-in method (fn [port terminate-fn] (start-fn "localhost" port terminate-fn)))
         (start-fn (first positional) (second positional) (fn []))))))
