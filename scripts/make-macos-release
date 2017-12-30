@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# start our_temp_dir: v1
+our_temp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t 'our_temp_dir')
+function cleanup_temp_dir() { rm -rf "$our_temp_dir" ; } && trap "cleanup_temp_dir" EXIT
+# end our_temp_dir
+
+target="$our_temp_dir/unravel"
+out="unravel.zip"
+
+rm -f "$out"
+
+yarn
+
+mkdir "$target"
+cp -r bin resources src node_modules "$target"
+
+pushd "$our_temp_dir"
+rm -f out.zip
+zip -r out.zip "unravel"
+popd
+
+mv "$our_temp_dir/out.zip" "$out"

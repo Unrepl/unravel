@@ -7,3 +7,4 @@ test/*.err
 **/*.pyc
 .lumo_cache
 .socket-port
+unravel.zip
