@@ -6,6 +6,15 @@ make_command() {
     cmd="(do (require 'clojure.core.server) (let [srv (clojure.core.server/start-server {:name :repl :port 0 :accept 'clojure.core.server/repl :server-daemon false})] (println (str \\newline (pr-str [:jack-in/ready {:method :${1}, :port (.getLocalPort srv)}])))))"
 }
 
+check_command() {
+    if ! hash "$1" 2>/dev/null; then
+        printf "Trying to start a REPL automatically using jack-in method '%s'\n" "$1" 1>&2
+        printf "but the command '$1' was not found in your PATH.\n\n$2\n" 1>&2
+        exit 1
+    fi
+}
+
+
 if [[ "${1-}" == "--method" ]]; then
     method="$2"
 elif [[ -e build.boot ]]; then
@@ -18,14 +27,17 @@ fi
 
 case "$method" in
     boot)
+        check_command "boot" "For instructions on installing this tool see\n\nhttps://github.com/boot-clj/boot#install"
         make_command boot
         exec boot call -e "$cmd" wait
         ;;
     lein)
+        check_command "lein" "For instructions on installing this tool see\n\nhttps://leiningen.org/"
         make_command lein
         exec lein trampoline run -m clojure.main -e "$cmd"
         ;;
     clojure)
+        check_command "clojure" "For instructions on installing this tool see\n\nhttps://clojure.org/guides/getting_started"
         make_command clojure
         exec clojure -e "$cmd"
         ;;
