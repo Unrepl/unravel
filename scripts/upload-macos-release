@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+set -x
+
+version="$(cat version.txt)"
+tag="v$version"
+src="dist/unravel.zip"
+
+git rev-parse "$tag"
+
+stat "$src"
+
+hub release create -d -a "$src" -p "$tag"

@@ -8,3 +8,4 @@ test/*.err
 .lumo_cache
 .socket-port
 unravel.zip
+dist

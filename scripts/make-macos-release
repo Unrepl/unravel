@@ -7,9 +7,10 @@ function cleanup_temp_dir() { rm -rf "$our_temp_dir" ; } && trap "cleanup_temp_d
 # end our_temp_dir
 
 target="$our_temp_dir/unravel"
-out="unravel.zip"
+out="dist/unravel.zip"
 
-rm -f "$out"
+rm -rf dist
+mkdir -p dist
 
 yarn
 
