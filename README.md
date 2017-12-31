@@ -15,20 +15,24 @@ Unravel provides a richer user experience by:
 
 To use unravel you need Clojure 1.8.0 or above.
 
-### Simple installation using npm
+### Simple installation
 
-On Linux or macOS you can install (or update) unravel via npm:
+On macOS, the easiest way to install unravel is via brew:
+
+```
+brew install unrepl/bin/unravel
+```
+
+On Linux or macOS you can also install (or update) unravel via npm:
 
 ```
 sudo npm install -g unravel-repl
 ```
 
-This installs the `unravel` binary and adds it to your PATH.
-
-On macOS you can also use
+In either case you should end up with an `unravel` binary in your PATH:
 
 ```
-brew install bfontaine/utils/unravel
+unravel --version
 ```
 
 ### Installation from git

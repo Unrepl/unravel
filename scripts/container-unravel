@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-exec scripts/container bash -c "npm install --unsafe-perm -g unravel-repl@0.3.0-beta && bash"
+exec scripts/container bash -c "npm install --unsafe-perm -g unravel-repl@0.3.0-beta.2 && bash"

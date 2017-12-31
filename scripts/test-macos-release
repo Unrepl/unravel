@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail && cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+dir=~/unravel-test
+
+rm -rf "$dir"
+mkdir "$dir"
+fn="$PWD/unravel.zip"
+cd "$dir"
+unzip "$fn"
