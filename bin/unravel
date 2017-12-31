@@ -3,7 +3,7 @@
 if [[ "${UNRAVEL_HOME-}" == "" ]]; then
     self="${BASH_SOURCE[0]}"
     if [[ -L "$self" ]]; then
-        self="$(readlink "$self")"
+        self="$(python -c "import os,sys; print os.path.realpath(sys.argv[1])" "$self")"
     fi
     dir="$(dirname "$self")"
     export UNRAVEL_HOME="${dir}/.."
