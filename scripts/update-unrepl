@@ -5,7 +5,10 @@ set -euo pipefail
 set -x
 
 cd ../unrepl
-git pull
+if [[ "${1-}" != "--local" ]]; then
+    git co master
+    git pull
+fi
 rm -f resources/unrepl/blob.clj
 lein unrepl-make-blob
 cp resources/unrepl/blob.clj ../unravel/resources/unrepl/blob.clj
