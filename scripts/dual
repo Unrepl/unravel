@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Dual-pane wrapper
+#
+# Run command passed with stderr displayed in a second tmux pane
+#
+# Example: scripts/dual scripts/unravel --debug
+
+# start our_temp_dir: v1
+our_temp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t 'our_temp_dir')
+function cleanup_temp_dir() { rm -rf "$our_temp_dir" ; } && trap "cleanup_temp_dir" EXIT
+# end our_temp_dir
+
+our_project_root="$(dirname "${BASH_SOURCE[0]}")/.."
+
+quote() {
+    first=1
+    for arg in "$@"; do
+        if [[ "$first" == 1 ]]; then
+            first=0
+        else
+            printf " "
+        fi
+
+        printf "%q" "$arg"
+    done
+}
+
+
+touch "$our_temp_dir/stderr.log"
+
+cmd="$(quote "$@")"
+printf "exec 2>$our_temp_dir/stderr.log\n%s\n" "$cmd" > "$our_temp_dir/cmd.sh"
+
+cat $our_temp_dir/cmd.sh
+
+tmux \
+    set -g mouse on \; \
+    new-session -d "bash $our_temp_dir/cmd.sh" \; split-window -h -d "tail -f $our_temp_dir/stderr.log"\; attach-session
