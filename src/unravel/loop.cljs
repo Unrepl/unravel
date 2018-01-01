@@ -93,10 +93,13 @@
 
 (defn cmd-complete [{{{:keys [compliment]} :flags} :options} prefix]
   (if compliment
-    (list '->>
-          prefix
-          'compliment.core/completions
-          '(clojure.core/map :candidate))
+    (list
+     'do
+     '(require (quote compliment.core))
+     (list '->>
+           prefix
+           'compliment.core/completions
+           '(clojure.core/map :candidate)))
     (list 'clojure.core/let ['prefix prefix]
           '(clojure.core/let [all (clojure.core/all-ns)
                               [_ ns va] (clojure.core/re-matches #"^(.*)/(.*)$" prefix)
