@@ -72,6 +72,12 @@
         (f v))))
   ctx)
 
+(defmethod process [:aux :exception] [[_ e] _ ctx]
+  (ut/red (fn []
+            (println "\nException in tooling connection:")
+            (println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
+  ctx)
+
 (defmethod process [:conn :exception] [[_ e] _ ctx]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e))))))
   (assoc ctx :pending-eval nil))
@@ -93,10 +99,12 @@
 
 (defn cmd-complete [{{{:keys [compliment]} :flags} :options} prefix]
   (if compliment
-    (list '->>
-          prefix
-          'compliment.core/completions
-          '(clojure.core/map :candidate))
+    (list
+     'do
+     '(require (quote compliment.core))
+     (list '->>
+           (list '(resolve 'compliment.core/completions) prefix)
+           '(clojure.core/map :candidate)))
     (list 'clojure.core/let ['prefix prefix]
           '(clojure.core/let [all (clojure.core/all-ns)
                               [_ ns va] (clojure.core/re-matches #"^(.*)/(.*)$" prefix)
@@ -117,7 +125,11 @@
                                clojure.core/sort)))))
 
 (defn cmd-doc [word]
-  (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
+  ;; eval times evil equals not evil
+  (list '(fn [s] (try
+                   (require 'clojure.repl)
+                   (eval (list 'clojure.repl/doc s)) (catch Exception _)))
+        (list 'quote (symbol word))))
 
 (defn do-doc [ctx line cursor]
   (when-let [word (ul/find-word-at line (max 0 (dec cursor)))]
@@ -219,9 +231,9 @@ interpreted by the REPL client. The following specials are available:
         (call-remote ctx
                      (if full?
                        (list '->>
-                             (list 'clojure.repl/doc (symbol word))
+                             (cmd-doc word)
                              'with-out-str)
-                       (list '->> (list 'clojure.repl/doc (symbol word))
+                       (list '->> (cmd-doc word)
                              'with-out-str
                              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
                              'rest))
@@ -244,6 +256,7 @@ interpreted by the REPL client. The following specials are available:
                   (println "\n*** completer timed out ***")
                   (cb nil #js[#js[] word]))
         [cb* timeout*] (uu/once-many cb timeout)]
+    (js/setTimeout timeout* 3000)
     (call-remote ctx
                  (cmd-complete ctx word)
                  (fn [completions]
