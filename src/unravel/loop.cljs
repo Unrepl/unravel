@@ -103,8 +103,7 @@
      'do
      '(require (quote compliment.core))
      (list '->>
-           prefix
-           'compliment.core/completions
+           (list '(resolve 'compliment.core/completions) prefix)
            '(clojure.core/map :candidate)))
     (list 'clojure.core/let ['prefix prefix]
           '(clojure.core/let [all (clojure.core/all-ns)
