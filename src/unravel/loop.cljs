@@ -125,7 +125,11 @@
                                clojure.core/sort)))))
 
 (defn cmd-doc [word]
-  (str "(do (require 'clojure.repl)(clojure.repl/doc " word "))"))
+  ;; eval times evil equals not evil
+  (list '(fn [s] (try
+                   (require 'clojure.repl)
+                   (eval (list 'clojure.repl/doc s)) (catch Exception _)))
+        (list 'quote (symbol word))))
 
 (defn do-doc [ctx line cursor]
   (when-let [word (ul/find-word-at line (max 0 (dec cursor)))]
@@ -227,9 +231,9 @@ interpreted by the REPL client. The following specials are available:
         (call-remote ctx
                      (if full?
                        (list '->>
-                             (list 'clojure.repl/doc (symbol word))
+                             (cmd-doc word)
                              'with-out-str)
-                       (list '->> (list 'clojure.repl/doc (symbol word))
+                       (list '->> (cmd-doc word)
                              'with-out-str
                              '(re-matches (re-pattern "(?is)(.*?\n(.*?\n)?(.*?\n)?(.*?\n)?)(.*)$"))
                              'rest))
