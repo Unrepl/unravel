@@ -72,6 +72,12 @@
         (f v))))
   ctx)
 
+(defmethod process [:aux :exception] [[_ e] _ ctx]
+  (ut/red (fn []
+            (println "\nException in tooling connection:")
+            (println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e)))))))
+  ctx)
+
 (defmethod process [:conn :exception] [[_ e] _ ctx]
   (ut/red #(println (uu/rstrip-one (with-out-str (ue/print-ex-form (:ex e))))))
   (assoc ctx :pending-eval nil))
