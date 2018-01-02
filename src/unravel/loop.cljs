@@ -247,6 +247,7 @@ interpreted by the REPL client. The following specials are available:
                   (println "\n*** completer timed out ***")
                   (cb nil #js[#js[] word]))
         [cb* timeout*] (uu/once-many cb timeout)]
+    (js/setTimeout timeout* 3000)
     (call-remote ctx
                  (cmd-complete ctx word)
                  (fn [completions]
