@@ -94,6 +94,12 @@ Using a plain Clojure jar:
 java -Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}" -jar ~/.m2/repository/org/clojure/clojure/1.8.0/clojure-1.8.0.jar
 ```
 
+As of Clojure 1.9 you can use the `clojure` command line tool:
+
+```
+clojure -J-Dclojure.server.myrepl="{:port 50505,:accept,clojure.core.server/repl}"
+```
+
 You can then connect to the process by running unravel in a separate terminal window:
 
 ```
